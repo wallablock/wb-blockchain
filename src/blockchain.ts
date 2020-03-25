@@ -1,18 +1,32 @@
 import Web3 from 'web3';
-import { provider } from 'web3-core/types';
+import { provider, Log } from 'web3-core/types';
+import { Subscription } from 'web3-core-subscriptions/types';
 import { AbiItem, AbiInput } from "web3-utils";
 import { abi as OfferAbi } from './contracts/Offer.json';
 
 import { CreatedEvent, CompletedEvent, CancelledEvent } from "./events";
+import { makeCreatedEvent } from "./events";
 
 interface EventSignatureList {
     [event: string]: { topic: string, inputs: AbiInput[] }
 }
 
 interface ResyncUpdate {
+    syncedToBlock: number,
     createdContracts: Array<CreatedEvent>,
     completedContracts: Array<CompletedEvent>,
     cancelledContracts: Array<CancelledEvent>
+}
+
+class EventSubscription {
+    constructor(private subscription: Subscription<Log> | null) {}
+
+    public unsubscribe() {
+        if (this.subscription != null) {
+            this.subscription.unsubscribe();
+            this.subscription = null;
+        }
+    }
 }
 
 export class Blockchain {
@@ -37,9 +51,81 @@ export class Blockchain {
         return res;
     }
 
+    public onCreated(
+        callback: (event: CreatedEvent) => void,
+        onRevert: (event: CreatedEvent) => void,
+        onError?: (name: string, message: string) => void,
+        fromBlock?: string | number
+    ): EventSubscription {
+        const createdInputs = this.events['Created'].inputs;
+        let subscription = this.web3.eth.subscribe('logs', {
+            fromBlock,
+            topics: [this.events['Created'].topic]
+        })
+        .on('data', (data) => {
+            const event = this.web3.eth.abi.decodeLog(createdInputs, data.data, data.topics);
+            callback(makeCreatedEvent(data.address, event));
+        })
+        .on('changed', (data) => {
+            const event = this.web3.eth.abi.decodeLog(createdInputs, data.data, data.topics);
+            onRevert(makeCreatedEvent(data.address, event));
+        });
+        if (onError != null) {
+            subscription.on('error', (error) => onError(error.name, error.message));
+        }
+        // TODO: Handle case: removed from blockchain. See subscription.on('changed')
+        return new EventSubscription(subscription);
+    }
+
+    public onCompleted(
+        callback: (event: CompletedEvent) => void,
+        onRevert: (event: CompletedEvent) => void,
+        onError?: (name: string, message: string) => void,
+        fromBlock?: string | number
+    ): EventSubscription {
+        let subscription = this.web3.eth.subscribe('logs', {
+            fromBlock,
+            topics: [this.events['Completed'].topic]
+        })
+        .on('data', (data) => {
+            callback({ offer: data.address });
+        })
+        .on('changed', (data) => {
+            onRevert({ offer: data.address });
+        });
+        if (onError != null) {
+            subscription.on('error', (error) => onError(error.name, error.message));
+        }
+        return new EventSubscription(subscription);
+    }
+
+    public onCancelled(
+        callback: (event: CancelledEvent) => void,
+        onRevert: (event: CancelledEvent) => void,
+        onError?: (name: string, message: string) => void,
+        fromBlock?: string | number
+    ): EventSubscription {
+        let subscription = this.web3.eth.subscribe('logs', {
+            fromBlock,
+            topics: [this.events['Cancelled'].topic]
+        })
+        .on('data', (data) => {
+            callback({ offer: data.address });
+        })
+        .on('changed', (data) => {
+            onRevert({ offer: data.address });
+        });
+        if (onError != null) {
+            subscription.on('error', (error) => onError(error.name, error.message));
+        }
+        return new EventSubscription(subscription);
+    }
+
     public async resync(fromBlock?: string): Promise<ResyncUpdate> {
+        const latestBlock = await this.web3.eth.getBlockNumber();
         const runQuery = (eventName: string) => this.web3.eth.getPastLogs({
             fromBlock,
+            toBlock: latestBlock,
             topics: [this.events[eventName].topic]
         });
         let createdContracts = new Array<CreatedEvent>();
@@ -75,6 +161,7 @@ export class Blockchain {
         }
 
         return {
+            syncedToBlock: latestBlock,
             createdContracts,
             completedContracts,
             cancelledContracts

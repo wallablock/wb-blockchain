@@ -29,11 +29,13 @@ class EventSubscription {
     }
 }
 
+export type BlockchainUrl = provider;
+
 export class Blockchain {
     private web3: Web3;
     private readonly events: EventSignatureList;
 
-    constructor(node: provider = "ws://localhost:8545") {
+    constructor(node: BlockchainUrl = "ws://localhost:8545") {
         this.web3 = new Web3(node);
         this.events = Blockchain.parseEvents(this.web3, OfferAbi as AbiItem[]);
     }
@@ -121,7 +123,7 @@ export class Blockchain {
         return new EventSubscription(subscription);
     }
 
-    public async resync(fromBlock?: string): Promise<ResyncUpdate> {
+    public async resync(fromBlock?: string | number): Promise<ResyncUpdate> {
         const latestBlock = await this.web3.eth.getBlockNumber();
         const runQuery = (eventName: string) => this.web3.eth.getPastLogs({
             fromBlock,

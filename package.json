@@ -2,7 +2,12 @@
   "name": "wb-blockchain",
   "version": "0.1.0",
   "description": "",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
@@ -11,6 +16,7 @@
     "typescript": "^3.8.3"
   },
   "dependencies": {
+    "bignumber.js": "^9.0.0",
     "web3": "^1.2.6"
   }
 }

@@ -8,15 +8,15 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
+    "install": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "UNLICENSED",
-  "devDependencies": {
-    "typescript": "^3.8.3"
-  },
+  "devDependencies": {},
   "dependencies": {
     "bignumber.js": "^9.0.0",
-    "web3": "^1.2.6"
+    "web3": "^1.2.6",
+    "typescript": "^3.8.3"
   }
 }

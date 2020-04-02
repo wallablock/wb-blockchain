@@ -1,22 +1,33 @@
 {
   "name": "wb-blockchain",
   "version": "0.1.0",
-  "description": "",
+  "description": "Library to communicate with Wallablock's blockchain",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
-    "install": "npm run build",
+    "prepare": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "author": "The Wallablock Team",
   "license": "UNLICENSED",
-  "devDependencies": {},
   "dependencies": {
     "bignumber.js": "^9.0.0",
-    "web3": "^1.2.6",
-    "typescript": "^3.8.3"
-  }
+    "typescript": "^3.8.3",
+    "wb-contracts": "git+https://github.com/wallablock/wb-contracts.git",
+    "web3": "^1.2.6"
+  },
+  "directories": {
+    "lib": "lib"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wallablock/wb-blockchain.git"
+  },
+  "bugs": {
+    "url": "https://github.com/wallablock/wb-blockchain/issues"
+  },
+  "homepage": "https://github.com/wallablock/wb-blockchain#readme"
 }

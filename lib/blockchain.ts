@@ -2,7 +2,7 @@ import Web3 from 'web3';
 import { provider, Log } from 'web3-core/types';
 import { Subscription } from 'web3-core-subscriptions/types';
 import { AbiItem, AbiInput } from "web3-utils";
-import { abi as OfferAbi } from './contracts/Offer.json';
+import { abi as OfferAbi } from "wb-contracts/build/contracts/Offer.json";
 
 import { CreatedEvent, CompletedEvent, CancelledEvent } from "./events";
 import { makeCreatedEvent } from "./events";

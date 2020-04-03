@@ -5,20 +5,19 @@ import { AbiItem, AbiInput } from "web3-utils";
 import { abi as OfferAbi } from "wb-contracts/build/contracts/Offer.json";
 
 import { CreatedEvent, CompletedEvent, CancelledEvent } from "./events";
-import { makeCreatedEvent } from "./events";
 
 interface EventSignatureList {
     [event: string]: { topic: string, inputs: AbiInput[] }
 }
 
-interface ResyncUpdate {
+export interface ResyncUpdate {
     syncedToBlock: number,
     createdContracts: Array<CreatedEvent>,
     completedContracts: Array<CompletedEvent>,
     cancelledContracts: Array<CancelledEvent>
 }
 
-class EventSubscription {
+export class EventSubscription {
     constructor(private subscription: Subscription<Log> | null) {}
 
     public unsubscribe() {
@@ -168,5 +167,16 @@ export class Blockchain {
             completedContracts,
             cancelledContracts
         };
+    }
+}
+
+function makeCreatedEvent(offer: string, data: any): CreatedEvent {
+    return {
+        offer,
+        seller: data.seller,
+        title: data.title,
+        price: data.price,
+        category: data.category,
+        shipsFrom: data.shipsFrom
     }
 }

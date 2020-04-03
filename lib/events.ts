@@ -1,5 +1,8 @@
-export interface CreatedEvent {
-    offer: string,
+export interface BlockchainEvent {
+    offer: string
+}
+
+export interface CreatedEvent extends BlockchainEvent {
     seller: string,
     title: string,
     price: string,
@@ -7,21 +10,8 @@ export interface CreatedEvent {
     shipsFrom: string
 }
 
-export function makeCreatedEvent(offer: string, data: any): CreatedEvent {
-    return {
-        offer,
-        seller: data.seller,
-        title: data.title,
-        price: data.price,
-        category: data.category,
-        shipsFrom: data.shipsFrom
-    }
-}
+export interface CompletedEvent extends BlockchainEvent {}
 
-export interface CompletedEvent {
-    offer: string
-}
+export interface CancelledEvent extends BlockchainEvent {}
 
-export interface CancelledEvent {
-    offer: string
 }

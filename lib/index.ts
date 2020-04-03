@@ -1,1 +1,2 @@
-export { Blockchain } from "./blockchain";
+export * from "./blockchain";
+export * from "./events";

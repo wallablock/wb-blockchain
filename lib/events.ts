@@ -14,4 +14,8 @@ export interface CompletedEvent extends BlockchainEvent {}
 
 export interface CancelledEvent extends BlockchainEvent {}
 
+export interface BoughtEvent extends BlockchainEvent {
+    buyer: string
 }
+
+export interface BuyerRejectedEvent extends BlockchainEvent {}

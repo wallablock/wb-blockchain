@@ -4,7 +4,7 @@ import { Subscription } from 'web3-core-subscriptions/types';
 import { AbiItem, AbiInput } from "web3-utils";
 import { abi as OfferAbi } from "wb-contracts/build/contracts/Offer.json";
 
-import { CreatedEvent, CompletedEvent, CancelledEvent } from "./events";
+import { CreatedEvent, CompletedEvent, CancelledEvent, BoughtEvent, BuyerRejectedEvent } from "./events";
 
 interface EventSignatureList {
     [event: string]: { topic: string, inputs: AbiInput[] }
@@ -109,6 +109,53 @@ export class Blockchain {
         let subscription = this.web3.eth.subscribe('logs', {
             fromBlock,
             topics: [this.events['Cancelled'].topic]
+        })
+        .on('data', (data) => {
+            callback({ offer: data.address });
+        })
+        .on('changed', (data) => {
+            onRevert({ offer: data.address });
+        });
+        if (onError != null) {
+            subscription.on('error', (error) => onError(error.name, error.message));
+        }
+        return new EventSubscription(subscription);
+    }
+
+    public onBought(
+        callback: (event: BoughtEvent) => void,
+        onRevert: (event: BoughtEvent) => void,
+        onError?: (name: string, message: string) => void,
+        fromBlock?: string | number
+    ): EventSubscription {
+        const eventInputs = this.events['Bought'].inputs;
+        let subscription = this.web3.eth.subscribe('logs', {
+            fromBlock,
+            topics: [this.events['Bought'].topic]
+        })
+        .on('data', (data) => {
+            const event = this.web3.eth.abi.decodeLog(eventInputs, data.data, data.topics);
+            callback({ offer: data.address, buyer: event.buyer });
+        })
+        .on('changed', (data) => {
+            const event = this.web3.eth.abi.decodeLog(eventInputs, data.data, data.topics);
+            onRevert({ offer: data.address, buyer: event.buyer });
+        })
+        if (onError != null) {
+            subscription.on('error', (error) => onError(error.name, error.message));
+        }
+        return new EventSubscription(subscription);
+    }
+
+    public onBuyerRejected(
+        callback: (event: BuyerRejectedEvent) => void,
+        onRevert: (event: BuyerRejectedEvent) => void,
+        onError?: (name: string, message: string) => void,
+        fromBlock?: string | number
+    ): EventSubscription {
+        let subscription = this.web3.eth.subscribe('logs', {
+            fromBlock,
+            topics: [this.events['BuyerRejected'].topic]
         })
         .on('data', (data) => {
             callback({ offer: data.address });

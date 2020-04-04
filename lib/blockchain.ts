@@ -12,9 +12,11 @@ interface EventSignatureList {
 
 export interface ResyncUpdate {
     syncedToBlock: number,
-    createdContracts: Array<CreatedEvent>,
-    completedContracts: Array<CompletedEvent>,
-    cancelledContracts: Array<CancelledEvent>
+    createdContracts: CreatedEvent[],
+    completedContracts: CompletedEvent[],
+    cancelledContracts: CancelledEvent[],
+    boughtContracts: BoughtEvent[],
+    buyerRejectedContracts: BuyerRejectedEvent[]
 }
 
 export class EventSubscription {
@@ -179,9 +181,13 @@ export class Blockchain {
         let createdContracts = new Array<CreatedEvent>();
         let completedContracts = new Array<CompletedEvent>();
         let cancelledContracts = new Array<CancelledEvent>();
+        let boughtContracts = new Array<BoughtEvent>();
+        let buyerRejectedContracts = new Array<BuyerRejectedEvent>();
         let createdEvents = runQuery('Created');
         let completedEvents = runQuery('Completed');
         let cancelledEvents = runQuery('Cancelled');
+        let boughtEvents = runQuery('Bought');
+        let buyerRejectedEvents = runQuery('BuyerRejected');
 
         let createdInputs = this.events['Created'].inputs;
         for (let event of await createdEvents) {
@@ -208,11 +214,28 @@ export class Blockchain {
             })
         }
 
+        let boughtInputs = this.events['Bought'].inputs;
+        for (let event of await boughtEvents) {
+            let data = this.web3.eth.abi.decodeLog(boughtInputs, event.data, event.topics);
+            boughtContracts.push({
+                offer: event.address,
+                buyer: data.buyer
+            })
+        }
+
+        for (let event of await buyerRejectedEvents) {
+            buyerRejectedContracts.push({
+                offer: event.address
+            })
+        }
+
         return {
             syncedToBlock: latestBlock,
             createdContracts,
             completedContracts,
-            cancelledContracts
+            cancelledContracts,
+            boughtContracts,
+            buyerRejectedContracts
         };
     }
 }

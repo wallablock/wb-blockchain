@@ -4,19 +4,19 @@ import { Subscription } from 'web3-core-subscriptions/types';
 import { AbiItem, AbiInput } from "web3-utils";
 import { abi as OfferAbi } from "wb-contracts/build/contracts/Offer.json";
 
-import { CreatedEvent, CompletedEvent, CancelledEvent, BoughtEvent, BuyerRejectedEvent } from "./events";
+import { CreatedEvent, CompletedEvent, CancelledEvent, BoughtEvent, BuyerRejectedEvent, BlockchainEvent } from "./events";
 
 interface EventSignatureList {
     [event: string]: { topic: string, inputs: AbiInput[] }
 }
 
 export interface ResyncUpdate {
-    syncedToBlock: number,
-    createdContracts: CreatedEvent[],
-    completedContracts: CompletedEvent[],
-    cancelledContracts: CancelledEvent[],
-    boughtContracts: BoughtEvent[],
-    buyerRejectedContracts: BuyerRejectedEvent[]
+    syncedToBlock: Promise<number>,
+    createdContracts: Promise<CreatedEvent[]>,
+    completedContracts: Promise<CompletedEvent[]>,
+    cancelledContracts: Promise<CancelledEvent[]>,
+    boughtContracts: Promise<BoughtEvent[]>,
+    buyerRejectedContracts: Promise<BuyerRejectedEvent[]>
 }
 
 export class EventSubscription {
@@ -171,71 +171,39 @@ export class Blockchain {
         return new EventSubscription(subscription);
     }
 
-    public async resync(fromBlock?: string | number): Promise<ResyncUpdate> {
-        const latestBlock = await this.web3.eth.getBlockNumber();
-        const runQuery = (eventName: string) => this.web3.eth.getPastLogs({
-            fromBlock,
-            toBlock: latestBlock,
-            topics: [this.events[eventName].topic]
-        });
-        let createdContracts = new Array<CreatedEvent>();
-        let completedContracts = new Array<CompletedEvent>();
-        let cancelledContracts = new Array<CancelledEvent>();
-        let boughtContracts = new Array<BoughtEvent>();
-        let buyerRejectedContracts = new Array<BuyerRejectedEvent>();
-        let createdEvents = runQuery('Created');
-        let completedEvents = runQuery('Completed');
-        let cancelledEvents = runQuery('Cancelled');
-        let boughtEvents = runQuery('Bought');
-        let buyerRejectedEvents = runQuery('BuyerRejected');
-
-        let createdInputs = this.events['Created'].inputs;
-        for (let event of await createdEvents) {
-            let data = this.web3.eth.abi.decodeLog(createdInputs, event.data, event.topics);
-            createdContracts.push({
-                offer: event.address,
-                seller: data.seller,
-                title: data.title,
-                price: data.price,
-                category: data.category,
-                shipsFrom: data.shipsFrom
-            })
-        }
-
-        for (let event of await completedEvents) {
-            completedContracts.push({
-                offer: event.address
-            })
-        }
-
-        for (let event of await cancelledEvents) {
-            cancelledContracts.push({
-                offer: event.address
-            })
-        }
-
-        let boughtInputs = this.events['Bought'].inputs;
-        for (let event of await boughtEvents) {
-            let data = this.web3.eth.abi.decodeLog(boughtInputs, event.data, event.topics);
-            boughtContracts.push({
-                offer: event.address,
-                buyer: data.buyer
-            })
-        }
-
-        for (let event of await buyerRejectedEvents) {
-            buyerRejectedContracts.push({
-                offer: event.address
-            })
+    public resync(fromBlock?: string | number): ResyncUpdate {
+        let latestBlockPromise = this.web3.eth.getBlockNumber();
+        const createdInputs = this.events['Created'].inputs;
+        const boughtInputs = this.events['Bought'].inputs;
+        const runQuery = (eventName: string) => latestBlockPromise
+            .then((toBlock) => this.web3.eth.getPastLogs({
+                fromBlock,
+                toBlock,
+                topics: [this.events[eventName].topic]
+            }));
+        const simpleConvert = function(log: Log): BlockchainEvent {
+            return { offer: log.address };
         }
 
         return {
-            syncedToBlock: latestBlock,
-            createdContracts,
-            completedContracts,
-            cancelledContracts,
-            boughtContracts,
-            buyerRejectedContracts
+            syncedToBlock: latestBlockPromise,
+            createdContracts: runQuery('Created').then((logs) => logs.map((log) => {
+                let data = this.web3.eth.abi.decodeLog(createdInputs, log.data, log.topics);
+                return makeCreatedEvent(log.address, data);
+            })),
+            completedContracts: runQuery('Completed')
+                .then((logs) => logs.map(simpleConvert)),
+            cancelledContracts: runQuery('Cancelled')
+                .then((logs) => logs.map(simpleConvert)),
+            boughtContracts: runQuery('Bought').then((logs) => logs.map((log) => {
+                let data = this.web3.eth.abi.decodeLog(boughtInputs, log.data, log.topics);
+                return {
+                    offer: log.address,
+                    buyer: data.buyer
+                };
+            })),
+            buyerRejectedContracts: runQuery('BuyerRejected')
+                .then((logs) => logs.map(simpleConvert))
         };
     }
 }

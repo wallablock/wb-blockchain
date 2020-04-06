@@ -1,9 +1,7 @@
 import Web3 from 'web3';
 import { provider, Log } from 'web3-core/types';
-import { Subscription } from 'web3-core-subscriptions/types';
 import { AbiItem, AbiInput } from "web3-utils";
 import { abi as OfferAbi } from "wb-contracts/build/contracts/Offer.json";
-
 import {
     CreatedEvent,
     CompletedEvent,
@@ -13,6 +11,7 @@ import {
     BlockchainEvent,
     ChangedEvent
 } from "./events";
+import { EventSubscription } from './event-subscription';
 
 interface EventSignatureList {
     [event: string]: { topic: string, inputs: AbiInput[] }
@@ -26,17 +25,6 @@ export interface ResyncUpdate {
     boughtContracts: Promise<BoughtEvent[]>,
     buyerRejectedContracts: Promise<BuyerRejectedEvent[]>,
     changedContracts: Promise<ChangedEvent[]>
-}
-
-export class EventSubscription {
-    constructor(private subscription: Subscription<Log> | null) {}
-
-    public unsubscribe() {
-        if (this.subscription != null) {
-            this.subscription.unsubscribe();
-            this.subscription = null;
-        }
-    }
 }
 
 export type BlockchainUrl = provider;

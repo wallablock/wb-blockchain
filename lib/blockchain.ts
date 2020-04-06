@@ -11,7 +11,7 @@ import {
     BlockchainEvent,
     ChangedEvent
 } from "./events";
-import { EventSubscription } from './event-subscription';
+import { EventSubscription, SimpleEventSubscription, CombinedEventSubscription } from './event-subscription';
 
 interface EventSignatureList {
     [event: string]: { topic: string, inputs: AbiInput[] }
@@ -74,7 +74,7 @@ export class Blockchain {
             subscription.on('error', (error) => onError(error.name, error.message));
         }
         // TODO: Handle case: removed from blockchain. See subscription.on('changed')
-        return new EventSubscription(subscription);
+        return new SimpleEventSubscription(subscription);
     }
 
     public onCompleted(
@@ -96,7 +96,7 @@ export class Blockchain {
         if (onError != null) {
             subscription.on('error', (error) => onError(error.name, error.message));
         }
-        return new EventSubscription(subscription);
+        return new SimpleEventSubscription(subscription);
     }
 
     public onCancelled(
@@ -118,7 +118,7 @@ export class Blockchain {
         if (onError != null) {
             subscription.on('error', (error) => onError(error.name, error.message));
         }
-        return new EventSubscription(subscription);
+        return new SimpleEventSubscription(subscription);
     }
 
     public onBought(
@@ -143,7 +143,7 @@ export class Blockchain {
         if (onError != null) {
             subscription.on('error', (error) => onError(error.name, error.message));
         }
-        return new EventSubscription(subscription);
+        return new SimpleEventSubscription(subscription);
     }
 
     public onBuyerRejected(
@@ -165,7 +165,69 @@ export class Blockchain {
         if (onError != null) {
             subscription.on('error', (error) => onError(error.name, error.message));
         }
-        return new EventSubscription(subscription);
+        return new SimpleEventSubscription(subscription);
+    }
+
+    public onChanged(
+        callback: (event: ChangedEvent) => void,
+        onRevert: (event: ChangedEvent) => void,
+        onError?: (name: string, message: string) => void,
+        fromBlock?: string | number
+    ): EventSubscription {
+        type Change = {
+            on: string,
+            fromField: string,
+            toField: keyof ChangedEvent
+        };
+        const changes: Change[] = [
+            {
+                on: "TitleChanged",
+                fromField: "newTitle",
+                toField: "title"
+            },
+            {
+                on: "PriceChanged",
+                fromField: "newPrice",
+                toField: "price"
+            },
+            {
+                on: "CategoryChanged",
+                fromField: "newCategory",
+                toField: "category"
+            },
+            {
+                on: "ShipsFromChanged",
+                fromField: "newShipsFrom",
+                toField: "shipsFrom"
+            }
+        ];
+        let subscriptions = new Array<EventSubscription>();
+        for (let { on, fromField, toField } of changes) {
+            const inputs = this.events[on].inputs;
+            let subscription = this.web3.eth.subscribe('logs', {
+                fromBlock,
+                topics: [this.events[on].topic]
+            })
+            .on('data', (log) => {
+                let data = this.web3.eth.abi.decodeLog(inputs, log.data, log.topics);
+                callback({
+                    offer: log.address,
+                    [toField]: data[fromField]
+                });
+            })
+            .on('changed', (log) => {
+                let data = this.web3.eth.abi.decodeLog(inputs, log.data, log.topics);
+                onRevert({
+                    offer: log.address,
+                    [toField]: data[fromField]
+                });
+            });
+            if (onError != null) {
+                subscription.on('error', (error) => onError(error.name, error.message));
+            }
+            subscriptions.push(subscription);
+        }
+        return new CombinedEventSubscription(subscriptions);
     }
 
     public resync(fromBlock?: string | number): ResyncUpdate {

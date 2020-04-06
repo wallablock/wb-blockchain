@@ -4,7 +4,15 @@ import { Subscription } from 'web3-core-subscriptions/types';
 import { AbiItem, AbiInput } from "web3-utils";
 import { abi as OfferAbi } from "wb-contracts/build/contracts/Offer.json";
 
-import { CreatedEvent, CompletedEvent, CancelledEvent, BoughtEvent, BuyerRejectedEvent, BlockchainEvent } from "./events";
+import {
+    CreatedEvent,
+    CompletedEvent,
+    CancelledEvent,
+    BoughtEvent,
+    BuyerRejectedEvent,
+    BlockchainEvent,
+    ChangedEvent
+} from "./events";
 
 interface EventSignatureList {
     [event: string]: { topic: string, inputs: AbiInput[] }
@@ -16,7 +24,8 @@ export interface ResyncUpdate {
     completedContracts: Promise<CompletedEvent[]>,
     cancelledContracts: Promise<CancelledEvent[]>,
     boughtContracts: Promise<BoughtEvent[]>,
-    buyerRejectedContracts: Promise<BuyerRejectedEvent[]>
+    buyerRejectedContracts: Promise<BuyerRejectedEvent[]>,
+    changedContracts: Promise<ChangedEvent[]>
 }
 
 export class EventSubscription {
@@ -187,7 +196,7 @@ export class Blockchain {
 
         return {
             syncedToBlock: latestBlockPromise,
-            createdContracts: runQuery('Created').then((logs) => logs.map((log) => {
+            createdContracts: runQuery('Created').then(logs => logs.map(log => {
                 let data = this.web3.eth.abi.decodeLog(createdInputs, log.data, log.topics);
                 return makeCreatedEvent(log.address, data);
             })),
@@ -195,7 +204,7 @@ export class Blockchain {
                 .then((logs) => logs.map(simpleConvert)),
             cancelledContracts: runQuery('Cancelled')
                 .then((logs) => logs.map(simpleConvert)),
-            boughtContracts: runQuery('Bought').then((logs) => logs.map((log) => {
+            boughtContracts: runQuery('Bought').then(logs => logs.map(log => {
                 let data = this.web3.eth.abi.decodeLog(boughtInputs, log.data, log.topics);
                 return {
                     offer: log.address,
@@ -203,8 +212,47 @@ export class Blockchain {
                 };
             })),
             buyerRejectedContracts: runQuery('BuyerRejected')
-                .then((logs) => logs.map(simpleConvert))
+                .then((logs) => logs.map(simpleConvert)),
+            changedContracts: this.changedForResync(runQuery)
         };
+    }
+
+    private async changedForResync(runQuery: (eventName: string) => Promise<Log[]>): Promise<ChangedEvent[]> {
+        const titleChangedInputs = this.events['TitleChanged'].inputs;
+        const priceChangedInputs = this.events['PriceChanged'].inputs;
+        const categoryChangedInputs = this.events['CategoryChanged'].inputs;
+        const shipsFromChangedInputs = this.events['ShipsFromChanged'].inputs;
+        let titleChanged = runQuery('TitleChanged').then(logs => logs.map(log => {
+            let data = this.web3.eth.abi.decodeLog(titleChangedInputs, log.data, log.topics);
+            return {
+                offer: log.address,
+                title: data.newTitle
+            };
+        }));
+        let priceChanged = runQuery('PriceChanged').then(logs => logs.map(log => {
+            let data = this.web3.eth.abi.decodeLog(priceChangedInputs, log.data, log.topics);
+            return {
+                offer: log.address,
+                price: data.newPrice
+            };
+        }));
+        let categoryChanged = runQuery('CategoryChanged').then(logs => logs.map(log => {
+            let data = this.web3.eth.abi.decodeLog(categoryChangedInputs, log.data, log.topics);
+            return {
+                offer: log.address,
+                category: data.newCategory
+            };
+        }));
+        let shipsFromChanged = runQuery('ShipsFromChanged').then(logs => logs.map(log => {
+            let data = this.web3.eth.abi.decodeLog(shipsFromChangedInputs, log.data, log.topics);
+            return {
+                offer: log.address,
+                shipsFrom: data.newShipsFrom
+            };
+        }));
+        const events = await Promise.all([titleChanged, priceChanged, categoryChanged, shipsFromChanged]);
+        // Flatten array. events.flat() could also be used, but that requires ESNext.
+        return (new Array<ChangedEvent>()).concat(...events);
     }
 }
 

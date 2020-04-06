@@ -19,3 +19,10 @@ export interface BoughtEvent extends BlockchainEvent {
 }
 
 export interface BuyerRejectedEvent extends BlockchainEvent {}
+
+export interface ChangedEvent extends BlockchainEvent {
+    title?: string,
+    price?: string,
+    category?: string,
+    shipsFrom?: string
+}

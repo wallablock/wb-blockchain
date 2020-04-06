@@ -12,6 +12,7 @@ import {
     ChangedEvent
 } from "./events";
 import { EventSubscription, SimpleEventSubscription, CombinedEventSubscription } from './event-subscription';
+import { Events as EventEnum } from "./blockchain-names";
 
 interface EventSignatureList {
     [event: string]: { topic: string, inputs: AbiInput[] }
@@ -57,10 +58,10 @@ export class Blockchain {
         onError?: (name: string, message: string) => void,
         fromBlock?: string | number
     ): EventSubscription {
-        const createdInputs = this.events['Created'].inputs;
+        const createdInputs = this.events[EventEnum.CREATED].inputs;
         let subscription = this.web3.eth.subscribe('logs', {
             fromBlock,
-            topics: [this.events['Created'].topic]
+            topics: [this.events[EventEnum.CREATED].topic]
         })
         .on('data', (data) => {
             const event = this.web3.eth.abi.decodeLog(createdInputs, data.data, data.topics);
@@ -85,7 +86,7 @@ export class Blockchain {
     ): EventSubscription {
         let subscription = this.web3.eth.subscribe('logs', {
             fromBlock,
-            topics: [this.events['Completed'].topic]
+            topics: [this.events[EventEnum.COMPLETED].topic]
         })
         .on('data', (data) => {
             callback({ offer: data.address });
@@ -107,7 +108,7 @@ export class Blockchain {
     ): EventSubscription {
         let subscription = this.web3.eth.subscribe('logs', {
             fromBlock,
-            topics: [this.events['Cancelled'].topic]
+            topics: [this.events[EventEnum.CANCELLED].topic]
         })
         .on('data', (data) => {
             callback({ offer: data.address });
@@ -127,10 +128,10 @@ export class Blockchain {
         onError?: (name: string, message: string) => void,
         fromBlock?: string | number
     ): EventSubscription {
-        const eventInputs = this.events['Bought'].inputs;
+        const eventInputs = this.events[EventEnum.BOUGHT].inputs;
         let subscription = this.web3.eth.subscribe('logs', {
             fromBlock,
-            topics: [this.events['Bought'].topic]
+            topics: [this.events[EventEnum.BOUGHT].topic]
         })
         .on('data', (data) => {
             const event = this.web3.eth.abi.decodeLog(eventInputs, data.data, data.topics);
@@ -154,7 +155,7 @@ export class Blockchain {
     ): EventSubscription {
         let subscription = this.web3.eth.subscribe('logs', {
             fromBlock,
-            topics: [this.events['BuyerRejected'].topic]
+            topics: [this.events[EventEnum.BUYER_REJECTED].topic]
         })
         .on('data', (data) => {
             callback({ offer: data.address });
@@ -175,28 +176,28 @@ export class Blockchain {
         fromBlock?: string | number
     ): EventSubscription {
         type Change = {
-            on: string,
+            on: EventEnum,
             fromField: string,
             toField: keyof ChangedEvent
         };
         const changes: Change[] = [
             {
-                on: "TitleChanged",
+                on: EventEnum.TITLE_CHANGED,
                 fromField: "newTitle",
                 toField: "title"
             },
             {
-                on: "PriceChanged",
+                on: EventEnum.PRICE_CHANGED,
                 fromField: "newPrice",
                 toField: "price"
             },
             {
-                on: "CategoryChanged",
+                on: EventEnum.CATEGORY_CHANGED,
                 fromField: "newCategory",
                 toField: "category"
             },
             {
-                on: "ShipsFromChanged",
+                on: EventEnum.SHIPS_FROM_CHANGED,
                 fromField: "newShipsFrom",
                 toField: "shipsFrom"
             }
@@ -232,9 +233,9 @@ export class Blockchain {
 
     public resync(fromBlock?: string | number): ResyncUpdate {
         let latestBlockPromise = this.web3.eth.getBlockNumber();
-        const createdInputs = this.events['Created'].inputs;
-        const boughtInputs = this.events['Bought'].inputs;
-        const runQuery = (eventName: string) => latestBlockPromise
+        const createdInputs = this.events[EventEnum.CREATED].inputs;
+        const boughtInputs = this.events[EventEnum.BOUGHT].inputs;
+        const runQuery = (eventName: EventEnum) => latestBlockPromise
             .then((toBlock) => this.web3.eth.getPastLogs({
                 fromBlock,
                 toBlock,
@@ -246,54 +247,54 @@ export class Blockchain {
 
         return {
             syncedToBlock: latestBlockPromise,
-            createdContracts: runQuery('Created').then(logs => logs.map(log => {
+            createdContracts: runQuery(EventEnum.CREATED).then(logs => logs.map(log => {
                 let data = this.web3.eth.abi.decodeLog(createdInputs, log.data, log.topics);
                 return makeCreatedEvent(log.address, data);
             })),
-            completedContracts: runQuery('Completed')
+            completedContracts: runQuery(EventEnum.COMPLETED)
                 .then((logs) => logs.map(simpleConvert)),
-            cancelledContracts: runQuery('Cancelled')
+            cancelledContracts: runQuery(EventEnum.CANCELLED)
                 .then((logs) => logs.map(simpleConvert)),
-            boughtContracts: runQuery('Bought').then(logs => logs.map(log => {
+            boughtContracts: runQuery(EventEnum.BOUGHT).then(logs => logs.map(log => {
                 let data = this.web3.eth.abi.decodeLog(boughtInputs, log.data, log.topics);
                 return {
                     offer: log.address,
                     buyer: data.buyer
                 };
             })),
-            buyerRejectedContracts: runQuery('BuyerRejected')
+            buyerRejectedContracts: runQuery(EventEnum.BUYER_REJECTED)
                 .then((logs) => logs.map(simpleConvert)),
             changedContracts: this.changedForResync(runQuery)
         };
     }
 
-    private async changedForResync(runQuery: (eventName: string) => Promise<Log[]>): Promise<ChangedEvent[]> {
-        const titleChangedInputs = this.events['TitleChanged'].inputs;
-        const priceChangedInputs = this.events['PriceChanged'].inputs;
-        const categoryChangedInputs = this.events['CategoryChanged'].inputs;
-        const shipsFromChangedInputs = this.events['ShipsFromChanged'].inputs;
-        let titleChanged = runQuery('TitleChanged').then(logs => logs.map(log => {
+    private async changedForResync(runQuery: (eventName: EventEnum) => Promise<Log[]>): Promise<ChangedEvent[]> {
+        const titleChangedInputs = this.events[EventEnum.TITLE_CHANGED].inputs;
+        const priceChangedInputs = this.events[EventEnum.PRICE_CHANGED].inputs;
+        const categoryChangedInputs = this.events[EventEnum.CATEGORY_CHANGED].inputs;
+        const shipsFromChangedInputs = this.events[EventEnum.SHIPS_FROM_CHANGED].inputs;
+        let titleChanged = runQuery(EventEnum.TITLE_CHANGED).then(logs => logs.map(log => {
             let data = this.web3.eth.abi.decodeLog(titleChangedInputs, log.data, log.topics);
             return {
                 offer: log.address,
                 title: data.newTitle
             };
         }));
-        let priceChanged = runQuery('PriceChanged').then(logs => logs.map(log => {
+        let priceChanged = runQuery(EventEnum.PRICE_CHANGED).then(logs => logs.map(log => {
             let data = this.web3.eth.abi.decodeLog(priceChangedInputs, log.data, log.topics);
             return {
                 offer: log.address,
                 price: data.newPrice
             };
         }));
-        let categoryChanged = runQuery('CategoryChanged').then(logs => logs.map(log => {
+        let categoryChanged = runQuery(EventEnum.CATEGORY_CHANGED).then(logs => logs.map(log => {
             let data = this.web3.eth.abi.decodeLog(categoryChangedInputs, log.data, log.topics);
             return {
                 offer: log.address,
                 category: data.newCategory
             };
         }));
-        let shipsFromChanged = runQuery('ShipsFromChanged').then(logs => logs.map(log => {
+        let shipsFromChanged = runQuery(EventEnum.SHIPS_FROM_CHANGED).then(logs => logs.map(log => {
             let data = this.web3.eth.abi.decodeLog(shipsFromChangedInputs, log.data, log.topics);
             return {
                 offer: log.address,

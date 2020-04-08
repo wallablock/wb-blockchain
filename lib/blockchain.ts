@@ -30,6 +30,12 @@ export interface ResyncUpdate {
 
 export type BlockchainUrl = provider;
 
+export enum CidSearchResult {
+    FOUND,
+    NOT_FOUND,
+    GONE
+}
+
 export class Blockchain {
     private web3: Web3;
     private readonly events: EventSignatureList;
@@ -304,6 +310,24 @@ export class Blockchain {
         const events = await Promise.all([titleChanged, priceChanged, categoryChanged, shipsFromChanged]);
         // Flatten array. events.flat() could also be used, but that requires ESNext.
         return (new Array<ChangedEvent>()).concat(...events);
+    }
+
+    public async findCid(cid: string): Promise<CidSearchResult> {
+        const filesTopic = this.events[EventEnum.ATTACHED_FILES_CHANGED].topic;
+        const cidTopic = this.web3.utils.soliditySha3({type: 'string', value: cid});
+        let logs = this.web3.eth.getPastLogs({
+            topics: [filesTopic, cidTopic]
+        });
+        let existed = false;
+        for (let log of await logs) {
+            existed = true;
+            // TODO: Check if stills exists
+        }
+        if (existed) {
+            return CidSearchResult.GONE;
+        } else {
+            return CidSearchResult.NOT_FOUND;
+        }
     }
 }
 

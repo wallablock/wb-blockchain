@@ -13,7 +13,7 @@ import {
     ChangedEvent
 } from "./events";
 import { EventSubscription, SimpleEventSubscription, CombinedEventSubscription } from './event-subscription';
-import { Events as EventEnum } from "./blockchain-names";
+import { Event as EventEnum, Property as PropertyEnum } from "./blockchain-names";
 
 export interface ResyncUpdate {
     syncedToBlock: Promise<number>,
@@ -48,7 +48,7 @@ export class Blockchain {
         onError: (name: string, message: string) => void = nopError,
         fromBlock?: string | number
     ): EventSubscription {
-        const subscription = this.offerContract.events[EventEnum.CREATED]({
+        const subscription = this.offerContract.events[EventEnum.Created]({
             fromBlock
         })
         .on('data', (data: EventData) => callback(makeCreatedEvent(data.address, data.returnValues)))
@@ -64,7 +64,7 @@ export class Blockchain {
         onError: (name: string, message: string) => void = nopError,
         fromBlock?: string | number
     ): EventSubscription {
-        const subscription = this.offerContract.events[EventEnum.COMPLETED]({
+        const subscription = this.offerContract.events[EventEnum.Completed]({
             fromBlock
         })
         .on('data', (data: EventData) => callback({ offer: data.address }))
@@ -79,7 +79,7 @@ export class Blockchain {
         onError: (name: string, message: string) => void = nopError,
         fromBlock?: string | number
     ): EventSubscription {
-        const subscription = this.offerContract.events[EventEnum.CANCELLED]({
+        const subscription = this.offerContract.events[EventEnum.Cancelled]({
             fromBlock
         })
         .on('data', (data: EventData) => callback({ offer: data.address }))
@@ -94,7 +94,7 @@ export class Blockchain {
         onError: (name: string, message: string) => void = nopError,
         fromBlock?: string | number
     ): EventSubscription {
-        const subscription = this.offerContract.events[EventEnum.BOUGHT]({
+        const subscription = this.offerContract.events[EventEnum.Bought]({
             fromBlock
         })
         .on('data', (data: EventData) => callback({
@@ -115,7 +115,7 @@ export class Blockchain {
         onError: (name: string, message: string) => void = nopError,
         fromBlock?: string | number
     ): EventSubscription {
-        const subscription = this.offerContract.events[EventEnum.BUYER_REJECTED]({
+        const subscription = this.offerContract.events[EventEnum.BuyerRejected]({
             fromBlock
         })
         .on('data', (data: EventData) => callback({ offer: data.address }))
@@ -162,21 +162,21 @@ export class Blockchain {
 
         return {
             syncedToBlock: latestBlockPromise,
-            createdContracts: runQuery(EventEnum.CREATED)
+            createdContracts: runQuery(EventEnum.Created)
                 .then(events => events
                     .map(event => makeCreatedEvent(event.address, event.returnValues))),
-            completedContracts: runQuery(EventEnum.COMPLETED)
+            completedContracts: runQuery(EventEnum.Completed)
                     .then(events => events.map(simpleConvert)),
-            cancelledContracts: runQuery(EventEnum.CANCELLED)
+            cancelledContracts: runQuery(EventEnum.Cancelled)
                     .then(events => events.map(simpleConvert)),
-            boughtContracts: runQuery(EventEnum.BOUGHT)
+            boughtContracts: runQuery(EventEnum.Bought)
                 .then(events => events.map(event => {
                     return {
                         offer: event.address,
                         buyer: event.returnValues.buyer
                     };
                 })),
-            buyerRejectedContracts: runQuery(EventEnum.BUYER_REJECTED)
+            buyerRejectedContracts: runQuery(EventEnum.BuyerRejected)
                     .then(events => events.map(simpleConvert)),
             changedContracts: this.changedForResync(runQuery)
         }
@@ -202,7 +202,7 @@ export class Blockchain {
     }
 
     public async findCid(cid: string): Promise<CidSearchResult> {
-        let events = this.offerContract.getPastEvents(EventEnum.ATTACHED_FILES_CHANGED, {
+        let events = this.offerContract.getPastEvents(EventEnum.AttachedFilesChanged, {
             filter: {
                 newCID: cid
             }
@@ -212,8 +212,7 @@ export class Blockchain {
             existed = true;
             let contract = this.offerContract.clone();
             contract.options.address = event.address;
-            // TODO: Change to use an enum similar to events
-            let currentAF = contract.methods.attachedFiles().call();
+            let currentAF = contract.methods[PropertyEnum.attachedFiles]().call();
             if (currentAF === cid) {
                 return CidSearchResult.FOUND;
             }
@@ -247,22 +246,22 @@ interface ChangeMap {
 
 const CHANGE_MAPPING: ChangeMap[] = [
     {
-        event: EventEnum.TITLE_CHANGED,
+        event: EventEnum.TitleChanged,
         objField: "title",
         ethField: "newTitle"
     },
     {
-        event: EventEnum.PRICE_CHANGED,
+        event: EventEnum.PriceChanged,
         objField: "price",
         ethField: "newPrice"
     },
     {
-        event: EventEnum.CATEGORY_CHANGED,
+        event: EventEnum.CategoryChanged,
         objField: "category",
         ethField: "newCategory"
     },
     {
-        event: EventEnum.SHIPS_FROM_CHANGED,
+        event: EventEnum.ShipsFromChanged,
         objField: "shipsFrom",
         ethField: "newShipsFrom"
     }

@@ -1,6 +1,6 @@
 import Web3 from 'web3';
 import { Contract, EventData } from "web3-eth-contract";
-import { provider, Log } from 'web3-core/types';
+import { provider } from 'web3-core/types';
 import { AbiItem, AbiInput } from "web3-utils";
 import { abi as OfferAbi } from "wb-contracts/build/contracts/Offer.json";
 import {
@@ -14,10 +14,6 @@ import {
 } from "./events";
 import { EventSubscription, SimpleEventSubscription, CombinedEventSubscription } from './event-subscription';
 import { Events as EventEnum } from "./blockchain-names";
-
-interface EventSignatureList {
-    [event: string]: { topic: string, inputs: AbiInput[] }
-}
 
 export interface ResyncUpdate {
     syncedToBlock: Promise<number>,
@@ -40,25 +36,10 @@ export enum CidSearchResult {
 export class Blockchain {
     private web3: Web3;
     private offerContract: Contract;
-    private readonly events: EventSignatureList;
 
     constructor(node: BlockchainUrl = "ws://localhost:8545") {
         this.web3 = new Web3(node);
         this.offerContract = new this.web3.eth.Contract(OfferAbi as AbiItem[]);
-        this.events = Blockchain.parseEvents(this.web3, OfferAbi as AbiItem[]);
-    }
-
-    private static parseEvents(web3: Web3, abi: AbiItem[]): EventSignatureList {
-        let res: EventSignatureList = {};
-        for (let entry of abi) {
-            if (entry.type === "event") {
-                res[entry.name!] = {
-                    topic: web3.eth.abi.encodeEventSignature(entry),
-                    inputs: entry.inputs!
-                }
-            }
-        }
-        return res;
     }
 
     public onCreated(

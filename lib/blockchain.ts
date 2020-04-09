@@ -221,13 +221,13 @@ export class Blockchain {
     }
 
     public async findCid(cid: string): Promise<CidSearchResult> {
-        const filesTopic = this.events[EventEnum.ATTACHED_FILES_CHANGED].topic;
-        const cidTopic = this.web3.utils.soliditySha3({type: 'string', value: cid});
-        let logs = this.web3.eth.getPastLogs({
-            topics: [filesTopic, cidTopic]
+        let events = this.offerContract.getPastEvents(EventEnum.ATTACHED_FILES_CHANGED, {
+            filter: {
+                newCID: cid
+            }
         });
         let existed = false;
-        for (let log of await logs) {
+        for (let event of await events) {
             existed = true;
             // TODO: Check if stills exists
         }

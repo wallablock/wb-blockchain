@@ -210,7 +210,13 @@ export class Blockchain {
         let existed = false;
         for (let event of await events) {
             existed = true;
-            // TODO: Check if stills exists
+            let contract = this.offerContract.clone();
+            contract.options.address = event.address;
+            // TODO: Change to use an enum similar to events
+            let currentAF = contract.methods.attachedFiles().call();
+            if (currentAF === cid) {
+                return CidSearchResult.FOUND;
+            }
         }
         if (existed) {
             return CidSearchResult.GONE;

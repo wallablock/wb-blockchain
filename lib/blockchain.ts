@@ -64,178 +64,106 @@ export class Blockchain {
     public onCreated(
         callback: (event: CreatedEvent) => void,
         onRevert: (event: CreatedEvent) => void,
-        onError?: (name: string, message: string) => void,
+        onError: (name: string, message: string) => void = nopError,
         fromBlock?: string | number
     ): EventSubscription {
-        const createdInputs = this.events[EventEnum.CREATED].inputs;
-        let subscription = this.web3.eth.subscribe('logs', {
-            fromBlock,
-            topics: [this.events[EventEnum.CREATED].topic]
+        const subscription = this.offerContract.events[EventEnum.CREATED]({
+            fromBlock
         })
-        .on('data', (data) => {
-            const event = this.web3.eth.abi.decodeLog(createdInputs, data.data, data.topics);
-            callback(makeCreatedEvent(data.address, event));
-        })
-        .on('changed', (data) => {
-            const event = this.web3.eth.abi.decodeLog(createdInputs, data.data, data.topics);
-            onRevert(makeCreatedEvent(data.address, event));
-        });
-        if (onError != null) {
-            subscription.on('error', (error) => onError(error.name, error.message));
-        }
+        .on('data', (data: EventData) => callback(makeCreatedEvent(data.address, data.returnValues)))
+        .on('changed', (data: EventData) => onRevert(makeCreatedEvent(data.address, data.returnValues)))
+        .on('error', (error: Error) => onError(error.name, error.message));
         // TODO: Handle case: removed from blockchain. See subscription.on('changed')
-        return new SimpleEventSubscription(subscription);
+        return new SimpleEventSubscription(subscription)
     }
 
     public onCompleted(
         callback: (event: CompletedEvent) => void,
         onRevert: (event: CompletedEvent) => void,
-        onError?: (name: string, message: string) => void,
+        onError: (name: string, message: string) => void = nopError,
         fromBlock?: string | number
     ): EventSubscription {
-        let subscription = this.web3.eth.subscribe('logs', {
-            fromBlock,
-            topics: [this.events[EventEnum.COMPLETED].topic]
+        const subscription = this.offerContract.events[EventEnum.COMPLETED]({
+            fromBlock
         })
-        .on('data', (data) => {
-            callback({ offer: data.address });
-        })
-        .on('changed', (data) => {
-            onRevert({ offer: data.address });
-        });
-        if (onError != null) {
-            subscription.on('error', (error) => onError(error.name, error.message));
-        }
+        .on('data', (data: EventData) => callback({ offer: data.address }))
+        .on('changed', (data: EventData) => onRevert({ offer: data.address }))
+        .on('error', (error: Error) => onError(error.name, error.message));
         return new SimpleEventSubscription(subscription);
     }
 
     public onCancelled(
         callback: (event: CancelledEvent) => void,
         onRevert: (event: CancelledEvent) => void,
-        onError?: (name: string, message: string) => void,
+        onError: (name: string, message: string) => void = nopError,
         fromBlock?: string | number
     ): EventSubscription {
-        let subscription = this.web3.eth.subscribe('logs', {
-            fromBlock,
-            topics: [this.events[EventEnum.CANCELLED].topic]
+        const subscription = this.offerContract.events[EventEnum.CANCELLED]({
+            fromBlock
         })
-        .on('data', (data) => {
-            callback({ offer: data.address });
-        })
-        .on('changed', (data) => {
-            onRevert({ offer: data.address });
-        });
-        if (onError != null) {
-            subscription.on('error', (error) => onError(error.name, error.message));
-        }
+        .on('data', (data: EventData) => callback({ offer: data.address }))
+        .on('changed', (data: EventData) => onRevert({ offer: data.address }))
+        .on('error', (error: Error) => onError(error.name, error.message));
         return new SimpleEventSubscription(subscription);
     }
 
     public onBought(
         callback: (event: BoughtEvent) => void,
         onRevert: (event: BoughtEvent) => void,
-        onError?: (name: string, message: string) => void,
+        onError: (name: string, message: string) => void = nopError,
         fromBlock?: string | number
     ): EventSubscription {
-        const eventInputs = this.events[EventEnum.BOUGHT].inputs;
-        let subscription = this.web3.eth.subscribe('logs', {
-            fromBlock,
-            topics: [this.events[EventEnum.BOUGHT].topic]
+        const subscription = this.offerContract.events[EventEnum.BOUGHT]({
+            fromBlock
         })
-        .on('data', (data) => {
-            const event = this.web3.eth.abi.decodeLog(eventInputs, data.data, data.topics);
-            callback({ offer: data.address, buyer: event.buyer });
-        })
-        .on('changed', (data) => {
-            const event = this.web3.eth.abi.decodeLog(eventInputs, data.data, data.topics);
-            onRevert({ offer: data.address, buyer: event.buyer });
-        })
-        if (onError != null) {
-            subscription.on('error', (error) => onError(error.name, error.message));
-        }
+        .on('data', (data: EventData) => callback({
+            offer: data.address,
+            buyer: data.returnValues.buyer
+        }))
+        .on('changed', (data: EventData) => onRevert({
+            offer: data.address,
+            buyer: data.returnValues.buyer
+        }))
+        .on('error', (error: Error) => onError(error.name, error.message));
         return new SimpleEventSubscription(subscription);
     }
 
     public onBuyerRejected(
         callback: (event: BuyerRejectedEvent) => void,
         onRevert: (event: BuyerRejectedEvent) => void,
-        onError?: (name: string, message: string) => void,
+        onError: (name: string, message: string) => void = nopError,
         fromBlock?: string | number
     ): EventSubscription {
-        let subscription = this.web3.eth.subscribe('logs', {
-            fromBlock,
-            topics: [this.events[EventEnum.BUYER_REJECTED].topic]
+        const subscription = this.offerContract.events[EventEnum.BUYER_REJECTED]({
+            fromBlock
         })
-        .on('data', (data) => {
-            callback({ offer: data.address });
-        })
-        .on('changed', (data) => {
-            onRevert({ offer: data.address });
-        });
-        if (onError != null) {
-            subscription.on('error', (error) => onError(error.name, error.message));
-        }
+        .on('data', (data: EventData) => callback({ offer: data.address }))
+        .on('changed', (data: EventData) => onRevert({ offer: data.address }))
+        .on('error', (error: Error) => onError(error.name, error.message));
         return new SimpleEventSubscription(subscription);
     }
 
     public onChanged(
         callback: (event: ChangedEvent) => void,
         onRevert: (event: ChangedEvent) => void,
-        onError?: (name: string, message: string) => void,
+        onError: (name: string, message: string) => void = nopError,
         fromBlock?: string | number
     ): EventSubscription {
-        type Change = {
-            on: EventEnum,
-            fromField: string,
-            toField: keyof ChangedEvent
-        };
-        const changes: Change[] = [
-            {
-                on: EventEnum.TITLE_CHANGED,
-                fromField: "newTitle",
-                toField: "title"
-            },
-            {
-                on: EventEnum.PRICE_CHANGED,
-                fromField: "newPrice",
-                toField: "price"
-            },
-            {
-                on: EventEnum.CATEGORY_CHANGED,
-                fromField: "newCategory",
-                toField: "category"
-            },
-            {
-                on: EventEnum.SHIPS_FROM_CHANGED,
-                fromField: "newShipsFrom",
-                toField: "shipsFrom"
-            }
-        ];
         let subscriptions = new Array<EventSubscription>();
-        for (let { on, fromField, toField } of changes) {
-            const inputs = this.events[on].inputs;
-            let subscription = this.web3.eth.subscribe('logs', {
-                fromBlock,
-                topics: [this.events[on].topic]
+        for (let { on, objField, ethField } of CHANGE_MAPPING) {
+            let subscription = this.offerContract.events[on]({
+                fromBlock
             })
-            .on('data', (log) => {
-                let data = this.web3.eth.abi.decodeLog(inputs, log.data, log.topics);
-                callback({
-                    offer: log.address,
-                    [toField]: data[fromField]
-                });
-            })
-            .on('changed', (log) => {
-                let data = this.web3.eth.abi.decodeLog(inputs, log.data, log.topics);
-                onRevert({
-                    offer: log.address,
-                    [toField]: data[fromField]
-                });
-            });
-            if (onError != null) {
-                subscription.on('error', (error) => onError(error.name, error.message));
-            }
-            subscriptions.push(subscription);
+            .on('data', (data: EventData) => callback({
+                offer: data.address,
+                [objField]: data.returnValues[ethField]
+            }))
+            .on('changed', (data: EventData) => onRevert({
+                offer: data.address,
+                [objField]: data.returnValues[ethField]
+            }))
+            .on('error', (error: Error) => onError(error.name, error.message));
+            subscriptions.push(new SimpleEventSubscription(subscription));
         }
         return new CombinedEventSubscription(subscriptions);
     }
@@ -321,3 +249,34 @@ function makeCreatedEvent(offer: string, data: any): CreatedEvent {
         shipsFrom: data.shipsFrom
     }
 }
+
+function nopError(_e: string, _m: string) {}
+
+interface ChangeMap {
+    on: EventEnum,
+    objField: keyof ChangedEvent,
+    ethField: string
+}
+
+const CHANGE_MAPPING: ChangeMap[] = [
+    {
+        on: EventEnum.TITLE_CHANGED,
+        objField: "title",
+        ethField: "newTitle"
+    },
+    {
+        on: EventEnum.PRICE_CHANGED,
+        objField: "price",
+        ethField: "newPrice"
+    },
+    {
+        on: EventEnum.CATEGORY_CHANGED,
+        objField: "category",
+        ethField: "newCategory"
+    },
+    {
+        on: EventEnum.SHIPS_FROM_CHANGED,
+        objField: "shipsFrom",
+        ethField: "newShipsFrom"
+    }
+];

@@ -17,13 +17,11 @@ export class SimpleEventSubscription implements EventSubscription {
 }
 
 export class CombinedEventSubscription implements EventSubscription {
-    constructor(private subscriptions: EventSubscription[] | null) { }
+    constructor(private subscriptions: EventSubscription[]) { }
     public unsubscribe() {
-        if (this.subscriptions != null) {
-            for (let subs of this.subscriptions) {
-                subs.unsubscribe();
-            }
-            this.subscriptions = null;
+        for (let subs of this.subscriptions) {
+            subs.unsubscribe();
         }
+        this.subscriptions = [];
     }
 }

@@ -1,7 +1,7 @@
 import Web3 from 'web3';
 import { Contract, EventData } from "web3-eth-contract";
 import { provider } from 'web3-core/types';
-import { AbiItem, AbiInput } from "web3-utils";
+import { AbiItem } from "web3-utils";
 import { abi as OfferAbi } from "wb-contracts/build/contracts/Offer.json";
 import {
     CreatedEvent,

@@ -1,4 +1,5 @@
 import Web3 from 'web3';
+import { Contract, EventData } from "web3-eth-contract";
 import { provider, Log } from 'web3-core/types';
 import { AbiItem, AbiInput } from "web3-utils";
 import { abi as OfferAbi } from "wb-contracts/build/contracts/Offer.json";
@@ -38,10 +39,12 @@ export enum CidSearchResult {
 
 export class Blockchain {
     private web3: Web3;
+    private offerContract: Contract;
     private readonly events: EventSignatureList;
 
     constructor(node: BlockchainUrl = "ws://localhost:8545") {
         this.web3 = new Web3(node);
+        this.offerContract = new this.web3.eth.Contract(OfferAbi as AbiItem[]);
         this.events = Blockchain.parseEvents(this.web3, OfferAbi as AbiItem[]);
     }
 
@@ -239,74 +242,51 @@ export class Blockchain {
 
     public resync(fromBlock?: string | number): ResyncUpdate {
         let latestBlockPromise = this.web3.eth.getBlockNumber();
-        const createdInputs = this.events[EventEnum.CREATED].inputs;
-        const boughtInputs = this.events[EventEnum.BOUGHT].inputs;
         const runQuery = (eventName: EventEnum) => latestBlockPromise
-            .then((toBlock) => this.web3.eth.getPastLogs({
+            .then(toBlock => this.offerContract.getPastEvents(eventName, {
                 fromBlock,
-                toBlock,
-                topics: [this.events[eventName].topic]
+                toBlock
             }));
-        const simpleConvert = function(log: Log): BlockchainEvent {
-            return { offer: log.address };
+        const simpleConvert = function(event: EventData): BlockchainEvent {
+            return { offer: event.address };
         }
 
         return {
             syncedToBlock: latestBlockPromise,
-            createdContracts: runQuery(EventEnum.CREATED).then(logs => logs.map(log => {
-                let data = this.web3.eth.abi.decodeLog(createdInputs, log.data, log.topics);
-                return makeCreatedEvent(log.address, data);
-            })),
+            createdContracts: runQuery(EventEnum.CREATED)
+                .then(events => events
+                    .map(event => makeCreatedEvent(event.address, event.returnValues))),
             completedContracts: runQuery(EventEnum.COMPLETED)
-                .then((logs) => logs.map(simpleConvert)),
+                    .then(events => events.map(simpleConvert)),
             cancelledContracts: runQuery(EventEnum.CANCELLED)
-                .then((logs) => logs.map(simpleConvert)),
-            boughtContracts: runQuery(EventEnum.BOUGHT).then(logs => logs.map(log => {
-                let data = this.web3.eth.abi.decodeLog(boughtInputs, log.data, log.topics);
-                return {
-                    offer: log.address,
-                    buyer: data.buyer
-                };
-            })),
+                    .then(events => events.map(simpleConvert)),
+            boughtContracts: runQuery(EventEnum.BOUGHT)
+                .then(events => events.map(event => {
+                    return {
+                        offer: event.address,
+                        buyer: event.returnValues.buyer
+                    };
+                })),
             buyerRejectedContracts: runQuery(EventEnum.BUYER_REJECTED)
-                .then((logs) => logs.map(simpleConvert)),
+                    .then(events => events.map(simpleConvert)),
             changedContracts: this.changedForResync(runQuery)
-        };
+        }
     }
 
-    private async changedForResync(runQuery: (eventName: EventEnum) => Promise<Log[]>): Promise<ChangedEvent[]> {
-        const titleChangedInputs = this.events[EventEnum.TITLE_CHANGED].inputs;
-        const priceChangedInputs = this.events[EventEnum.PRICE_CHANGED].inputs;
-        const categoryChangedInputs = this.events[EventEnum.CATEGORY_CHANGED].inputs;
-        const shipsFromChangedInputs = this.events[EventEnum.SHIPS_FROM_CHANGED].inputs;
-        let titleChanged = runQuery(EventEnum.TITLE_CHANGED).then(logs => logs.map(log => {
-            let data = this.web3.eth.abi.decodeLog(titleChangedInputs, log.data, log.topics);
-            return {
-                offer: log.address,
-                title: data.newTitle
-            };
-        }));
-        let priceChanged = runQuery(EventEnum.PRICE_CHANGED).then(logs => logs.map(log => {
-            let data = this.web3.eth.abi.decodeLog(priceChangedInputs, log.data, log.topics);
-            return {
-                offer: log.address,
-                price: data.newPrice
-            };
-        }));
-        let categoryChanged = runQuery(EventEnum.CATEGORY_CHANGED).then(logs => logs.map(log => {
-            let data = this.web3.eth.abi.decodeLog(categoryChangedInputs, log.data, log.topics);
-            return {
-                offer: log.address,
-                category: data.newCategory
-            };
-        }));
-        let shipsFromChanged = runQuery(EventEnum.SHIPS_FROM_CHANGED).then(logs => logs.map(log => {
-            let data = this.web3.eth.abi.decodeLog(shipsFromChangedInputs, log.data, log.topics);
-            return {
-                offer: log.address,
-                shipsFrom: data.newShipsFrom
-            };
-        }));
+    private async changedForResync(runQuery: (eventName: EventEnum) => Promise<EventData[]>): Promise<ChangedEvent[]> {
+        const fetchChanged = async function(eventName: EventEnum, objKey: keyof ChangedEvent, ethKey: string): Promise<ChangedEvent[]> {
+            const events = await runQuery(eventName);
+            return events.map(event => {
+                return {
+                    offer: event.address,
+                    [objKey]: event.returnValues[ethKey]
+                };
+            });
+        }
+        const titleChanged = fetchChanged(EventEnum.TITLE_CHANGED, "title", "newTitle");
+        const priceChanged = fetchChanged(EventEnum.PRICE_CHANGED, "price", "newPrice");
+        const categoryChanged = fetchChanged(EventEnum.CATEGORY_CHANGED, "category", "newCategory");
+        const shipsFromChanged = fetchChanged(EventEnum.SHIPS_FROM_CHANGED, "shipsFrom", "newShipsFrom");
         const events = await Promise.all([titleChanged, priceChanged, categoryChanged, shipsFromChanged]);
         // Flatten array. events.flat() could also be used, but that requires ESNext.
         return (new Array<ChangedEvent>()).concat(...events);

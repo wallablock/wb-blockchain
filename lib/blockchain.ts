@@ -150,8 +150,8 @@ export class Blockchain {
         fromBlock?: string | number
     ): EventSubscription {
         let subscriptions = new Array<EventSubscription>();
-        for (let { on, objField, ethField } of CHANGE_MAPPING) {
-            let subscription = this.offerContract.events[on]({
+        for (let { event, objField, ethField } of CHANGE_MAPPING) {
+            let subscription = this.offerContract.events[event]({
                 fromBlock
             })
             .on('data', (data: EventData) => callback({
@@ -211,11 +211,11 @@ export class Blockchain {
                 };
             });
         }
-        const titleChanged = fetchChanged(EventEnum.TITLE_CHANGED, "title", "newTitle");
-        const priceChanged = fetchChanged(EventEnum.PRICE_CHANGED, "price", "newPrice");
-        const categoryChanged = fetchChanged(EventEnum.CATEGORY_CHANGED, "category", "newCategory");
-        const shipsFromChanged = fetchChanged(EventEnum.SHIPS_FROM_CHANGED, "shipsFrom", "newShipsFrom");
-        const events = await Promise.all([titleChanged, priceChanged, categoryChanged, shipsFromChanged]);
+        let waitingPromises = new Array<Promise<ChangedEvent[]>>();
+        for (let { event, objField, ethField } of CHANGE_MAPPING) {
+            waitingPromises.push(fetchChanged(event, objField, ethField));
+        }
+        const events = await Promise.all(waitingPromises);
         // Flatten array. events.flat() could also be used, but that requires ESNext.
         return (new Array<ChangedEvent>()).concat(...events);
     }
@@ -253,29 +253,29 @@ function makeCreatedEvent(offer: string, data: any): CreatedEvent {
 function nopError(_e: string, _m: string) {}
 
 interface ChangeMap {
-    on: EventEnum,
+    event: EventEnum,
     objField: keyof ChangedEvent,
     ethField: string
 }
 
 const CHANGE_MAPPING: ChangeMap[] = [
     {
-        on: EventEnum.TITLE_CHANGED,
+        event: EventEnum.TITLE_CHANGED,
         objField: "title",
         ethField: "newTitle"
     },
     {
-        on: EventEnum.PRICE_CHANGED,
+        event: EventEnum.PRICE_CHANGED,
         objField: "price",
         ethField: "newPrice"
     },
     {
-        on: EventEnum.CATEGORY_CHANGED,
+        event: EventEnum.CATEGORY_CHANGED,
         objField: "category",
         ethField: "newCategory"
     },
     {
-        on: EventEnum.SHIPS_FROM_CHANGED,
+        event: EventEnum.SHIPS_FROM_CHANGED,
         objField: "shipsFrom",
         ethField: "newShipsFrom"
     }

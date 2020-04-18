@@ -264,5 +264,10 @@ const CHANGE_MAPPING: ChangeMap[] = [
         event: EventEnum.ShipsFromChanged,
         objField: "shipsFrom",
         ethField: "newShipsFrom"
+    },
+    {
+        event: EventEnum.AttachedFilesChanged,
+        objField: "attachedFiles",
+        ethField: "newCID"
     }
 ];

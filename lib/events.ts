@@ -24,5 +24,6 @@ export interface ChangedEvent extends BlockchainEvent {
     title?: string,
     price?: string,
     category?: string,
-    shipsFrom?: string
+    shipsFrom?: string,
+    attachedFiles?: string
 }

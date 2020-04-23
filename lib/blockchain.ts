@@ -13,7 +13,7 @@ import {
     ChangedEvent
 } from "./events";
 import { EventSubscription, SimpleEventSubscription, CombinedEventSubscription } from './event-subscription';
-import { Event as EventEnum, Property as PropertyEnum } from "./blockchain-names";
+import { Event as EventEnum, Property as PropertyEnum, Status } from "./blockchain-names";
 
 export interface ResyncUpdate {
     syncedToBlock: Promise<number>,
@@ -23,6 +23,17 @@ export interface ResyncUpdate {
     boughtContracts: Promise<BoughtEvent[]>,
     buyerRejectedContracts: Promise<BuyerRejectedEvent[]>,
     changedContracts: Promise<ChangedEvent[]>
+}
+
+export interface OfferDump {
+    status: Status,
+    shipsFrom: string,
+    seller: string,
+    buyer: string,
+    price: string,
+    title: string,
+    category: string,
+    attachedFiles: string
 }
 
 export type BlockchainUrl = provider;
@@ -54,7 +65,6 @@ export class Blockchain {
         .on('data', (data: EventData) => callback(makeCreatedEvent(data.address, data.returnValues)))
         .on('changed', (data: EventData) => onRevert(makeCreatedEvent(data.address, data.returnValues)))
         .on('error', (error: Error) => onError(error.name, error.message));
-        // TODO: Handle case: removed from blockchain. See subscription.on('changed')
         return new SimpleEventSubscription(subscription)
     }
 
@@ -147,6 +157,29 @@ export class Blockchain {
             subscriptions.push(new SimpleEventSubscription(subscription));
         }
         return new CombinedEventSubscription(subscriptions);
+    }
+
+    public async dumpOffer(offer: string): Promise<OfferDump | null> {
+        let contract = this.offerContract.clone();
+        contract.options.address = offer;
+        let statusProm = contract.methods[PropertyEnum.currentStatus]().call();
+        let shipsFromProm = contract.methods[PropertyEnum.shipsFrom]().call();
+        let sellerProm = contract.methods[PropertyEnum.seller]().call();
+        let buyerProm = contract.methods[PropertyEnum.buyer]().call();
+        let priceProm = contract.methods[PropertyEnum.price]().call();
+        let titleProm = contract.methods[PropertyEnum.title]().call();
+        let categoryProm = contract.methods[PropertyEnum.category]().call();
+        let attachedFilesProm = contract.methods[PropertyEnum.attachedFiles]().call();
+        return {
+            status: await statusProm,
+            shipsFrom: await shipsFromProm,
+            seller: await sellerProm,
+            buyer: await buyerProm,
+            price: await priceProm,
+            title: await titleProm,
+            category: await categoryProm,
+            attachedFiles: await attachedFilesProm
+        };
     }
 
     public resync(fromBlock?: string | number): ResyncUpdate {

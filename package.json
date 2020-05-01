@@ -8,6 +8,7 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "prepare": "npm run build",
+    "format": "prettier --write lib",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "The Wallablock Team",
@@ -28,5 +29,8 @@
   "bugs": {
     "url": "https://github.com/wallablock/wb-blockchain/issues"
   },
-  "homepage": "https://github.com/wallablock/wb-blockchain#readme"
+  "homepage": "https://github.com/wallablock/wb-blockchain#readme",
+  "devDependencies": {
+    "prettier": "2.0.5"
+  }
 }

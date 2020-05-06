@@ -66,7 +66,7 @@ export class Blockchain {
     callback: (event: CreatedEvent) => void,
     onRevert: (event: CreatedEvent) => void,
     onError: (name: string, message: string) => void = nopError,
-    fromBlock?: string | number
+    fromBlock: string | number = "latest"
   ): EventSubscription {
     const subscription = this.registryContract.events[EventEnum.Created]({
       fromBlock,
@@ -85,7 +85,7 @@ export class Blockchain {
     callback: (event: CompletedEvent) => void,
     onRevert: (event: CompletedEvent) => void,
     onError: (name: string, message: string) => void = nopError,
-    fromBlock?: string | number
+    fromBlock: string | number = "latest"
   ): EventSubscription {
     const subscription = this.registryContract.events[EventEnum.Completed]({
       fromBlock,
@@ -100,7 +100,7 @@ export class Blockchain {
     callback: (event: CancelledEvent) => void,
     onRevert: (event: CancelledEvent) => void,
     onError: (name: string, message: string) => void = nopError,
-    fromBlock?: string | number
+    fromBlock: string | number = "latest"
   ): EventSubscription {
     const subscription = this.registryContract.events[EventEnum.Cancelled]({
       fromBlock,
@@ -115,7 +115,7 @@ export class Blockchain {
     callback: (event: BoughtEvent) => void,
     onRevert: (event: BoughtEvent) => void,
     onError: (name: string, message: string) => void = nopError,
-    fromBlock?: string | number
+    fromBlock: string | number = "latest"
   ): EventSubscription {
     const subscription = this.registryContract.events[EventEnum.Bought]({
       fromBlock,
@@ -140,7 +140,7 @@ export class Blockchain {
     callback: (event: BuyerRejectedEvent) => void,
     onRevert: (event: BuyerRejectedEvent) => void,
     onError: (name: string, message: string) => void = nopError,
-    fromBlock?: string | number
+    fromBlock: string | number = "latest"
   ): EventSubscription {
     const subscription = this.registryContract.events[EventEnum.BuyerRejected]({
       fromBlock,
@@ -155,7 +155,7 @@ export class Blockchain {
     callback: (event: ChangedEvent) => void,
     onRevert: (event: ChangedEvent) => void,
     onError: (name: string, message: string) => void = nopError,
-    fromBlock?: string | number
+    fromBlock: string | number = "latest"
   ): EventSubscription {
     let subscriptions = new Array<EventSubscription>();
     for (let { event, objField, ethField } of CHANGE_MAPPING) {
@@ -204,7 +204,7 @@ export class Blockchain {
     };
   }
 
-  public resync(fromBlock?: string | number): ResyncUpdate {
+  public resync(fromBlock: string | number = "genesis"): ResyncUpdate {
     let latestBlockPromise = this.web3.eth.getBlockNumber();
     const runQuery = (eventName: EventEnum) =>
       latestBlockPromise.then((toBlock) =>

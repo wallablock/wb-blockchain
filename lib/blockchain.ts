@@ -3,6 +3,7 @@ import { Contract, EventData } from "web3-eth-contract";
 import { provider } from "web3-core/types";
 import { AbiItem } from "web3-utils";
 import { abi as OfferAbi } from "wb-contracts/build/contracts/Offer.json";
+import { abi as OfferRegistryAbi } from "wb-contracts/build/contracts/OfferRegistry.json";
 import {
   CreatedEvent,
   CompletedEvent,
@@ -54,11 +55,11 @@ export enum CidSearchResult {
 
 export class Blockchain {
   private web3: Web3;
-  private offerContract: Contract;
+  private registryContract: Contract;
 
-  constructor(node: BlockchainUrl = "ws://localhost:8545") {
+  constructor(registryAddress: string, node: BlockchainUrl = "ws://localhost:8545") {
     this.web3 = new Web3(node);
-    this.offerContract = new this.web3.eth.Contract(OfferAbi as AbiItem[]);
+    this.registryContract = new this.web3.eth.Contract(OfferRegistryAbi as AbiItem[], registryAddress);
   }
 
   public onCreated(
@@ -67,14 +68,14 @@ export class Blockchain {
     onError: (name: string, message: string) => void = nopError,
     fromBlock?: string | number
   ): EventSubscription {
-    const subscription = this.offerContract.events[EventEnum.Created]({
+    const subscription = this.registryContract.events[EventEnum.Created]({
       fromBlock,
     })
       .on("data", (data: EventData) =>
-        callback(makeCreatedEvent(data.address, data.returnValues))
+        callback(makeCreatedEvent(data.returnValues))
       )
       .on("changed", (data: EventData) =>
-        onRevert(makeCreatedEvent(data.address, data.returnValues))
+        onRevert(makeCreatedEvent(data.returnValues))
       )
       .on("error", (error: Error) => onError(error.name, error.message));
     return new SimpleEventSubscription(subscription);
@@ -86,11 +87,11 @@ export class Blockchain {
     onError: (name: string, message: string) => void = nopError,
     fromBlock?: string | number
   ): EventSubscription {
-    const subscription = this.offerContract.events[EventEnum.Completed]({
+    const subscription = this.registryContract.events[EventEnum.Completed]({
       fromBlock,
     })
-      .on("data", (data: EventData) => callback({ offer: data.address }))
-      .on("changed", (data: EventData) => onRevert({ offer: data.address }))
+      .on("data", (data: EventData) => callback({ offer: data.returnValues.offer }))
+      .on("changed", (data: EventData) => onRevert({ offer: data.returnValues.offer }))
       .on("error", (error: Error) => onError(error.name, error.message));
     return new SimpleEventSubscription(subscription);
   }
@@ -101,11 +102,11 @@ export class Blockchain {
     onError: (name: string, message: string) => void = nopError,
     fromBlock?: string | number
   ): EventSubscription {
-    const subscription = this.offerContract.events[EventEnum.Cancelled]({
+    const subscription = this.registryContract.events[EventEnum.Cancelled]({
       fromBlock,
     })
-      .on("data", (data: EventData) => callback({ offer: data.address }))
-      .on("changed", (data: EventData) => onRevert({ offer: data.address }))
+      .on("data", (data: EventData) => callback({ offer: data.returnValues.offer }))
+      .on("changed", (data: EventData) => onRevert({ offer: data.returnValues.offer }))
       .on("error", (error: Error) => onError(error.name, error.message));
     return new SimpleEventSubscription(subscription);
   }
@@ -116,18 +117,18 @@ export class Blockchain {
     onError: (name: string, message: string) => void = nopError,
     fromBlock?: string | number
   ): EventSubscription {
-    const subscription = this.offerContract.events[EventEnum.Bought]({
+    const subscription = this.registryContract.events[EventEnum.Bought]({
       fromBlock,
     })
       .on("data", (data: EventData) =>
         callback({
-          offer: data.address,
+          offer: data.returnValues.offer,
           buyer: data.returnValues.buyer,
         })
       )
       .on("changed", (data: EventData) =>
         onRevert({
-          offer: data.address,
+          offer: data.returnValues.offer,
           buyer: data.returnValues.buyer,
         })
       )
@@ -141,11 +142,11 @@ export class Blockchain {
     onError: (name: string, message: string) => void = nopError,
     fromBlock?: string | number
   ): EventSubscription {
-    const subscription = this.offerContract.events[EventEnum.BuyerRejected]({
+    const subscription = this.registryContract.events[EventEnum.BuyerRejected]({
       fromBlock,
     })
-      .on("data", (data: EventData) => callback({ offer: data.address }))
-      .on("changed", (data: EventData) => onRevert({ offer: data.address }))
+      .on("data", (data: EventData) => callback({ offer: data.returnValues.offer }))
+      .on("changed", (data: EventData) => onRevert({ offer: data.returnValues.offer }))
       .on("error", (error: Error) => onError(error.name, error.message));
     return new SimpleEventSubscription(subscription);
   }
@@ -158,18 +159,18 @@ export class Blockchain {
   ): EventSubscription {
     let subscriptions = new Array<EventSubscription>();
     for (let { event, objField, ethField } of CHANGE_MAPPING) {
-      let subscription = this.offerContract.events[event]({
+      let subscription = this.registryContract.events[event]({
         fromBlock,
       })
         .on("data", (data: EventData) =>
           callback({
-            offer: data.address,
+            offer: data.returnValues.offer,
             [objField]: data.returnValues[ethField],
           })
         )
         .on("changed", (data: EventData) =>
           onRevert({
-            offer: data.address,
+            offer: data.returnValues.offer,
             [objField]: data.returnValues[ethField],
           })
         )
@@ -180,8 +181,7 @@ export class Blockchain {
   }
 
   public async dumpOffer(offer: string): Promise<OfferDump | null> {
-    let contract = this.offerContract.clone();
-    contract.options.address = offer;
+    let contract = new this.web3.eth.Contract(OfferAbi as AbiItem[], offer);
     let statusProm = contract.methods[PropertyEnum.currentStatus]().call();
     let shipsFromProm = contract.methods[PropertyEnum.shipsFrom]().call();
     let sellerProm = contract.methods[PropertyEnum.seller]().call();
@@ -208,20 +208,20 @@ export class Blockchain {
     let latestBlockPromise = this.web3.eth.getBlockNumber();
     const runQuery = (eventName: EventEnum) =>
       latestBlockPromise.then((toBlock) =>
-        this.offerContract.getPastEvents(eventName, {
+        this.registryContract.getPastEvents(eventName, {
           fromBlock,
           toBlock,
         })
       );
     const simpleConvert = function (event: EventData): BlockchainEvent {
-      return { offer: event.address };
+      return { offer: event.returnValues.offer };
     };
 
     return {
       syncedToBlock: latestBlockPromise,
       createdContracts: runQuery(EventEnum.Created).then((events) =>
         events.map((event) =>
-          makeCreatedEvent(event.address, event.returnValues)
+          makeCreatedEvent(event.returnValues)
         )
       ),
       completedContracts: runQuery(EventEnum.Completed).then((events) =>
@@ -233,7 +233,7 @@ export class Blockchain {
       boughtContracts: runQuery(EventEnum.Bought).then((events) =>
         events.map((event) => {
           return {
-            offer: event.address,
+            offer: event.returnValues.offer,
             buyer: event.returnValues.buyer,
           };
         })
@@ -256,7 +256,7 @@ export class Blockchain {
       const events = await runQuery(eventName);
       return events.map((event) => {
         return {
-          offer: event.address,
+          offer: event.returnValues.offer,
           [objKey]: event.returnValues[ethKey],
         };
       });
@@ -271,7 +271,7 @@ export class Blockchain {
   }
 
   public async findCid(cid: string): Promise<CidSearchResult> {
-    let events = this.offerContract.getPastEvents(
+    let events = this.registryContract.getPastEvents(
       EventEnum.AttachedFilesChanged,
       {
         filter: {
@@ -282,8 +282,7 @@ export class Blockchain {
     let existed = false;
     for (let event of await events) {
       existed = true;
-      let contract = this.offerContract.clone();
-      contract.options.address = event.address;
+      let contract = new this.web3.eth.Contract(OfferAbi as AbiItem[], event.returnValues.offer);
       let currentAF = contract.methods[PropertyEnum.attachedFiles]().call();
       if (currentAF === cid) {
         return CidSearchResult.FOUND;
@@ -297,9 +296,9 @@ export class Blockchain {
   }
 }
 
-function makeCreatedEvent(offer: string, data: any): CreatedEvent {
+function makeCreatedEvent(data: any): CreatedEvent {
   return {
-    offer,
+    offer: data.offer,
     seller: data.seller,
     title: data.title,
     price: data.price,

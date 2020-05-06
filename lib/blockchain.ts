@@ -45,6 +45,18 @@ export interface OfferDump {
   attachedFiles: string;
 }
 
+export interface EventFn<E extends BlockchainEvent> {
+  (event: E, block: number | null): void;
+}
+
+export interface RevertFn<E extends BlockchainEvent> {
+  (event: E): void;
+}
+
+export interface ErrorFn {
+  (name: string, message: string): void;
+}
+
 export type BlockchainUrl = provider;
 
 export enum CidSearchResult {
@@ -57,22 +69,28 @@ export class Blockchain {
   private web3: Web3;
   private registryContract: Contract;
 
-  constructor(registryAddress: string, node: BlockchainUrl = "ws://localhost:8545") {
+  constructor(
+    registryAddress: string,
+    node: BlockchainUrl = "ws://localhost:8545"
+  ) {
     this.web3 = new Web3(node);
-    this.registryContract = new this.web3.eth.Contract(OfferRegistryAbi as AbiItem[], registryAddress);
+    this.registryContract = new this.web3.eth.Contract(
+      OfferRegistryAbi as AbiItem[],
+      registryAddress
+    );
   }
 
   public onCreated(
-    callback: (event: CreatedEvent) => void,
-    onRevert: (event: CreatedEvent) => void,
-    onError: (name: string, message: string) => void = nopError,
+    callback: EventFn<CreatedEvent>,
+    onRevert: RevertFn<CreatedEvent>,
+    onError: ErrorFn = nopError,
     fromBlock: string | number = "latest"
   ): EventSubscription {
     const subscription = this.registryContract.events[EventEnum.Created]({
       fromBlock,
     })
       .on("data", (data: EventData) =>
-        callback(makeCreatedEvent(data.returnValues))
+        callback(makeCreatedEvent(data.returnValues), data.blockNumber)
       )
       .on("changed", (data: EventData) =>
         onRevert(makeCreatedEvent(data.returnValues))
@@ -82,49 +100,60 @@ export class Blockchain {
   }
 
   public onCompleted(
-    callback: (event: CompletedEvent) => void,
-    onRevert: (event: CompletedEvent) => void,
-    onError: (name: string, message: string) => void = nopError,
+    callback: EventFn<CompletedEvent>,
+    onRevert: RevertFn<CompletedEvent>,
+    onError: ErrorFn = nopError,
     fromBlock: string | number = "latest"
   ): EventSubscription {
     const subscription = this.registryContract.events[EventEnum.Completed]({
       fromBlock,
     })
-      .on("data", (data: EventData) => callback({ offer: data.returnValues.offer }))
-      .on("changed", (data: EventData) => onRevert({ offer: data.returnValues.offer }))
+      .on("data", (data: EventData) =>
+        callback({ offer: data.returnValues.offer }, data.blockNumber)
+      )
+      .on("changed", (data: EventData) =>
+        onRevert({ offer: data.returnValues.offer })
+      )
       .on("error", (error: Error) => onError(error.name, error.message));
     return new SimpleEventSubscription(subscription);
   }
 
   public onCancelled(
-    callback: (event: CancelledEvent) => void,
-    onRevert: (event: CancelledEvent) => void,
-    onError: (name: string, message: string) => void = nopError,
+    callback: EventFn<CancelledEvent>,
+    onRevert: RevertFn<CancelledEvent>,
+    onError: ErrorFn = nopError,
     fromBlock: string | number = "latest"
   ): EventSubscription {
     const subscription = this.registryContract.events[EventEnum.Cancelled]({
       fromBlock,
     })
-      .on("data", (data: EventData) => callback({ offer: data.returnValues.offer }))
-      .on("changed", (data: EventData) => onRevert({ offer: data.returnValues.offer }))
+      .on("data", (data: EventData) =>
+        callback({ offer: data.returnValues.offer }, data.blockNumber)
+      )
+      .on("changed", (data: EventData) =>
+        onRevert({ offer: data.returnValues.offer })
+      )
       .on("error", (error: Error) => onError(error.name, error.message));
     return new SimpleEventSubscription(subscription);
   }
 
   public onBought(
-    callback: (event: BoughtEvent) => void,
-    onRevert: (event: BoughtEvent) => void,
-    onError: (name: string, message: string) => void = nopError,
+    callback: EventFn<BoughtEvent>,
+    onRevert: RevertFn<BoughtEvent>,
+    onError: ErrorFn = nopError,
     fromBlock: string | number = "latest"
   ): EventSubscription {
     const subscription = this.registryContract.events[EventEnum.Bought]({
       fromBlock,
     })
       .on("data", (data: EventData) =>
-        callback({
-          offer: data.returnValues.offer,
-          buyer: data.returnValues.buyer,
-        })
+        callback(
+          {
+            offer: data.returnValues.offer,
+            buyer: data.returnValues.buyer,
+          },
+          data.blockNumber
+        )
       )
       .on("changed", (data: EventData) =>
         onRevert({
@@ -137,24 +166,28 @@ export class Blockchain {
   }
 
   public onBuyerRejected(
-    callback: (event: BuyerRejectedEvent) => void,
-    onRevert: (event: BuyerRejectedEvent) => void,
-    onError: (name: string, message: string) => void = nopError,
+    callback: EventFn<BuyerRejectedEvent>,
+    onRevert: RevertFn<BuyerRejectedEvent>,
+    onError: ErrorFn = nopError,
     fromBlock: string | number = "latest"
   ): EventSubscription {
     const subscription = this.registryContract.events[EventEnum.BuyerRejected]({
       fromBlock,
     })
-      .on("data", (data: EventData) => callback({ offer: data.returnValues.offer }))
-      .on("changed", (data: EventData) => onRevert({ offer: data.returnValues.offer }))
+      .on("data", (data: EventData) =>
+        callback({ offer: data.returnValues.offer }, data.blockNumber)
+      )
+      .on("changed", (data: EventData) =>
+        onRevert({ offer: data.returnValues.offer })
+      )
       .on("error", (error: Error) => onError(error.name, error.message));
     return new SimpleEventSubscription(subscription);
   }
 
   public onChanged(
-    callback: (event: ChangedEvent) => void,
-    onRevert: (event: ChangedEvent) => void,
-    onError: (name: string, message: string) => void = nopError,
+    callback: EventFn<ChangedEvent>,
+    onRevert: RevertFn<ChangedEvent>,
+    onError: ErrorFn = nopError,
     fromBlock: string | number = "latest"
   ): EventSubscription {
     let subscriptions = new Array<EventSubscription>();
@@ -163,10 +196,13 @@ export class Blockchain {
         fromBlock,
       })
         .on("data", (data: EventData) =>
-          callback({
-            offer: data.returnValues.offer,
-            [objField]: data.returnValues[ethField],
-          })
+          callback(
+            {
+              offer: data.returnValues.offer,
+              [objField]: data.returnValues[ethField],
+            },
+            data.blockNumber
+          )
         )
         .on("changed", (data: EventData) =>
           onRevert({
@@ -220,9 +256,7 @@ export class Blockchain {
     return {
       syncedToBlock: latestBlockPromise,
       createdContracts: runQuery(EventEnum.Created).then((events) =>
-        events.map((event) =>
-          makeCreatedEvent(event.returnValues)
-        )
+        events.map((event) => makeCreatedEvent(event.returnValues))
       ),
       completedContracts: runQuery(EventEnum.Completed).then((events) =>
         events.map(simpleConvert)
@@ -282,7 +316,10 @@ export class Blockchain {
     let existed = false;
     for (let event of await events) {
       existed = true;
-      let contract = new this.web3.eth.Contract(OfferAbi as AbiItem[], event.returnValues.offer);
+      let contract = new this.web3.eth.Contract(
+        OfferAbi as AbiItem[],
+        event.returnValues.offer
+      );
       let currentAF = contract.methods[PropertyEnum.attachedFiles]().call();
       if (currentAF === cid) {
         return CidSearchResult.FOUND;

@@ -59,11 +59,15 @@ export interface ErrorFn {
 
 export type BlockchainUrl = provider;
 
-export enum CidSearchResult {
+export enum CidSearchFound {
   FOUND,
   NOT_FOUND,
   GONE,
 }
+
+export type CidSearchResult =
+  | [CidSearchFound.NOT_FOUND | CidSearchFound.GONE, null]
+  | [CidSearchFound.FOUND, Set<Status>];
 
 export class Blockchain {
   private web3: Web3;
@@ -304,6 +308,18 @@ export class Blockchain {
     return new Array<ChangedEvent>().concat(...events);
   }
 
+  /**
+   * Check if a CID is or has been on the blockchain and, if it can still be found,
+   * in which states are the offers that reference it.
+   *
+   * @remarks
+   * Take in mind that, while most CIDs will only be associated will one offer,
+   * Some may be referenced by more than one offer, and such behaviour is expected,
+   * in special cases (empty offer, offer with only empty description...).
+   *
+   * @param cid - CID to search.
+   *    This CID will be used as a filter on `newCID` for the `AttachedFilesChanged` event.
+   */
   public async findCid(cid: string): Promise<CidSearchResult> {
     let events = this.registryContract.getPastEvents(
       EventEnum.AttachedFilesChanged,
@@ -314,6 +330,7 @@ export class Blockchain {
       }
     );
     let existed = false;
+    let statusSet = new Set<Status>();
     for (let event of await events) {
       existed = true;
       let contract = new this.web3.eth.Contract(
@@ -321,14 +338,17 @@ export class Blockchain {
         event.returnValues.offer
       );
       let currentAF = contract.methods[PropertyEnum.attachedFiles]().call();
-      if (currentAF === cid) {
-        return CidSearchResult.FOUND;
+      let status = contract.methods[PropertyEnum.currentStatus]().call();
+      if ((await currentAF) == cid) {
+        statusSet.add(await status);
       }
     }
-    if (existed) {
-      return CidSearchResult.GONE;
+    if (!existed) {
+      return [CidSearchFound.NOT_FOUND, null];
+    } else if (statusSet.size === 0) {
+      return [CidSearchFound.GONE, null];
     } else {
-      return CidSearchResult.NOT_FOUND;
+      return [CidSearchFound.FOUND, statusSet];
     }
   }
 }

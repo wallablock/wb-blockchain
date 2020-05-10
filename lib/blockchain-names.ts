@@ -1,10 +1,3 @@
-export enum Status {
-  WAITING_BUYER = "0",
-  PENDING_CONFIRMATION = "1",
-  COMPLETED = "2",
-  CANCELLED = "3",
-}
-
 export const enum Constant {
   MIN_PRICE = "MIN_PRICE",
   SELLER_DEPOSIT_MULTIPLIER = "SELLER_DEPOSIT_MULTIPLIER",

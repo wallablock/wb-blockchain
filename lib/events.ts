@@ -21,5 +21,6 @@ export interface BoughtEvent extends BlockchainEvent {
 
 export interface BuyerRejectedEvent extends BlockchainEvent {}
 
-type OptionalCreatedEvent = BlockchainEvent & Partial<Omit<CreatedEvent, "offer">>;
+type OptionalCreatedEvent = BlockchainEvent &
+  Partial<Omit<CreatedEvent, "offer">>;
 export interface ChangedEvent extends Omit<OptionalCreatedEvent, "seller"> {}

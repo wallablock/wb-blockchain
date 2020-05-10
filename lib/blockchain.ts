@@ -21,8 +21,8 @@ import {
 import {
   Event as EventEnum,
   Property as PropertyEnum,
-  Status,
 } from "./blockchain-names";
+import { OfferStatus } from "./OfferStatus";
 
 export interface ResyncUpdate {
   syncedToBlock: Promise<number>;
@@ -35,7 +35,7 @@ export interface ResyncUpdate {
 }
 
 export interface OfferDump {
-  status: Status;
+  status: OfferStatus;
   shipsFrom: string;
   seller: string;
   buyer: string;
@@ -67,7 +67,7 @@ export enum CidSearchFound {
 
 export type CidSearchResult =
   | [CidSearchFound.NOT_FOUND | CidSearchFound.GONE, null]
-  | [CidSearchFound.FOUND, Set<Status>];
+  | [CidSearchFound.FOUND, Set<OfferStatus>];
 
 export class Blockchain {
   private web3: Web3;
@@ -330,7 +330,7 @@ export class Blockchain {
       }
     );
     let existed = false;
-    let statusSet = new Set<Status>();
+    let statusSet = new Set<OfferStatus>();
     for (let event of await events) {
       existed = true;
       let contract = new this.web3.eth.Contract(
@@ -361,7 +361,7 @@ function makeCreatedEvent(data: any): CreatedEvent {
     price: data.price,
     category: data.category,
     shipsFrom: data.shipsFrom,
-    attachedFiles: data.attachedFiles
+    attachedFiles: data.attachedFiles,
   };
 }
 

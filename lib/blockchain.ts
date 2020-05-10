@@ -361,6 +361,7 @@ function makeCreatedEvent(data: any): CreatedEvent {
     price: data.price,
     category: data.category,
     shipsFrom: data.shipsFrom,
+    attachedFiles: data.attachedFiles
   };
 }
 

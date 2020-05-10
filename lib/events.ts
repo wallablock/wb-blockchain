@@ -8,6 +8,7 @@ export interface CreatedEvent extends BlockchainEvent {
   price: string;
   category: string;
   shipsFrom: string;
+  attachedFiles: string;
 }
 
 export interface CompletedEvent extends BlockchainEvent {}

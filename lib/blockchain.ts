@@ -1,8 +1,6 @@
 import Web3 from "web3";
 import { Contract, EventData } from "web3-eth-contract";
 import { provider } from "web3-core/types";
-import { HttpProvider } from "web3-providers-http";
-import { WebsocketProvider } from "web3-providers-ws";
 import { AbiItem } from "web3-utils";
 import { abi as OfferAbi } from "wb-contracts/build/contracts/Offer.json";
 import { abi as OfferRegistryAbi } from "wb-contracts/build/contracts/OfferRegistry.json";
@@ -83,7 +81,7 @@ export class Blockchain {
     if (typeof node !== "string") {
       provider = node;
     } else if (node.startsWith("ws://") || node.startsWith("wss://")) {
-      provider = (WebsocketProvider as any)(node, {
+      provider = new Web3.providers.WebsocketProvider(node, {
         timeout: 30000, // 30 s. WSS timeout for EtherProxy is 60 s.
         reconnect: {
           auto: true,
@@ -92,7 +90,7 @@ export class Blockchain {
         },
       });
     } else if (node.startsWith("http://") || node.startsWith("https://")) {
-      provider = (HttpProvider as any)(node, {
+      provider = new Web3.providers.HttpProvider(node, {
         keepAlive: true,
       });
     } else {

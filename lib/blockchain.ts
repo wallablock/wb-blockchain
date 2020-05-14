@@ -1,6 +1,6 @@
 import Web3 from "web3";
 import { Contract, EventData } from "web3-eth-contract";
-import { provider } from "web3-core/types";
+import { provider, WebsocketProvider, HttpProvider } from "web3-core/types";
 import { AbiItem } from "web3-utils";
 import { abi as OfferAbi } from "wb-contracts/build/contracts/Offer.json";
 import { abi as OfferRegistryAbi } from "wb-contracts/build/contracts/OfferRegistry.json";
@@ -75,9 +75,28 @@ export class Blockchain {
 
   constructor(
     registryAddress: string,
-    node: BlockchainUrl = "ws://localhost:8545"
+    node: BlockchainUrl = "ws://localhost:8546"
   ) {
-    this.web3 = new Web3(node);
+    let provider: provider;
+    if (typeof node !== "string") {
+      provider = node;
+    } else if (node.startsWith("ws://") || node.startsWith("wss://")) {
+      provider = new WebsocketProvider(node, {
+        timeout: 30000, // 30 s. WSS timeout for EtherProxy is 60 s.
+        reconnect: {
+          auto: true,
+          delay: 1000,
+          maxAttempts: 5,
+        },
+      });
+    } else if (node.startsWith("http://") || node.startsWith("https://")) {
+      provider = new HttpProvider(node, {
+        keepAlive: true,
+      });
+    } else {
+      provider = node;
+    }
+    this.web3 = new Web3(provider);
     this.registryContract = new this.web3.eth.Contract(
       OfferRegistryAbi as AbiItem[],
       registryAddress

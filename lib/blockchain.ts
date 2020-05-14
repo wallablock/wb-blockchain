@@ -1,6 +1,8 @@
 import Web3 from "web3";
 import { Contract, EventData } from "web3-eth-contract";
-import { provider, WebsocketProvider, HttpProvider } from "web3-core/types";
+import { provider } from "web3-core/types";
+import { HttpProvider } from "web3-providers-http";
+import { WebsocketProvider } from "web3-providers-ws";
 import { AbiItem } from "web3-utils";
 import { abi as OfferAbi } from "wb-contracts/build/contracts/Offer.json";
 import { abi as OfferRegistryAbi } from "wb-contracts/build/contracts/OfferRegistry.json";

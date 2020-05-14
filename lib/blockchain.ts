@@ -83,7 +83,7 @@ export class Blockchain {
     if (typeof node !== "string") {
       provider = node;
     } else if (node.startsWith("ws://") || node.startsWith("wss://")) {
-      provider = new WebsocketProvider(node, {
+      provider = (WebsocketProvider as any)(node, {
         timeout: 30000, // 30 s. WSS timeout for EtherProxy is 60 s.
         reconnect: {
           auto: true,
@@ -92,7 +92,7 @@ export class Blockchain {
         },
       });
     } else if (node.startsWith("http://") || node.startsWith("https://")) {
-      provider = new HttpProvider(node, {
+      provider = (HttpProvider as any)(node, {
         keepAlive: true,
       });
     } else {

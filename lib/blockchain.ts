@@ -60,6 +60,11 @@ export type CidSearchResult =
   | [CidSearchFound.NOT_FOUND | CidSearchFound.GONE, null]
   | [CidSearchFound.FOUND, Set<OfferStatus>];
 
+export const priceToEth = (p: string) => Web3.utils.fromWei(p, "ether");
+export const priceToWei = (p: string) => p;
+export const priceFromEth = (p: string) => Web3.utils.toWei(p, "ether");
+export const priceFromWei = (p: string) => p;
+
 export class Blockchain {
   private web3: Web3;
   private registryContract: Contract;

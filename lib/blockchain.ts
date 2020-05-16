@@ -23,6 +23,8 @@ import {
   Property as PropertyEnum,
 } from "./blockchain-names";
 import { OfferStatus } from "./OfferStatus";
+import { MAPPERS } from "./data-mapper";
+import { OfferDump } from "./OfferDump";
 
 export interface ResyncUpdate {
   syncedToBlock: Promise<number>;
@@ -32,17 +34,6 @@ export interface ResyncUpdate {
   boughtContracts: Promise<BoughtEvent[]>;
   buyerRejectedContracts: Promise<BuyerRejectedEvent[]>;
   changedContracts: Promise<ChangedEvent[]>;
-}
-
-export interface OfferDump {
-  status: OfferStatus;
-  shipsFrom: string;
-  seller: string;
-  buyer: string;
-  price: string;
-  title: string;
-  category: string;
-  attachedFiles: string;
 }
 
 export interface EventFn<E extends BlockchainEvent> {
@@ -173,7 +164,7 @@ export class Blockchain {
         callback(
           {
             offer: data.returnValues.offer,
-            buyer: data.returnValues.buyer,
+            buyer: MAPPERS.buyer(data.returnValues.buyer),
           },
           data.blockNumber
         )
@@ -181,7 +172,7 @@ export class Blockchain {
       .on("changed", (data: EventData) =>
         onRevert({
           offer: data.returnValues.offer,
-          buyer: data.returnValues.buyer,
+          buyer: MAPPERS.buyer(data.returnValues.buyer),
         })
       )
       .on("error", (error: Error) => onError(error.name, error.message));
@@ -222,7 +213,7 @@ export class Blockchain {
           callback(
             {
               offer: data.returnValues.offer,
-              [objField]: data.returnValues[ethField],
+              [objField]: MAPPERS[objField](data.returnValues[ethField]),
             },
             data.blockNumber
           )
@@ -230,7 +221,7 @@ export class Blockchain {
         .on("changed", (data: EventData) =>
           onRevert({
             offer: data.returnValues.offer,
-            [objField]: data.returnValues[ethField],
+            [objField]: MAPPERS[objField](data.returnValues[ethField]),
           })
         )
         .on("error", (error: Error) => onError(error.name, error.message));
@@ -241,16 +232,30 @@ export class Blockchain {
 
   public async dumpOffer(offer: string): Promise<OfferDump | null> {
     let contract = new this.web3.eth.Contract(OfferAbi as AbiItem[], offer);
-    let statusProm = contract.methods[PropertyEnum.currentStatus]().call();
-    let shipsFromProm = contract.methods[PropertyEnum.shipsFrom]().call();
-    let sellerProm = contract.methods[PropertyEnum.seller]().call();
-    let buyerProm = contract.methods[PropertyEnum.buyer]().call();
-    let priceProm = contract.methods[PropertyEnum.price]().call();
-    let titleProm = contract.methods[PropertyEnum.title]().call();
-    let categoryProm = contract.methods[PropertyEnum.category]().call();
-    let attachedFilesProm = contract.methods[
-      PropertyEnum.attachedFiles
-    ]().call();
+    let statusProm = contract.methods[PropertyEnum.currentStatus]()
+      .call()
+      .then(MAPPERS.status);
+    let shipsFromProm = contract.methods[PropertyEnum.shipsFrom]()
+      .call()
+      .then(MAPPERS.shipsFrom);
+    let sellerProm = contract.methods[PropertyEnum.seller]()
+      .call()
+      .then(MAPPERS.seller);
+    let buyerProm = contract.methods[PropertyEnum.buyer]()
+      .call()
+      .then(MAPPERS.buyer);
+    let priceProm = contract.methods[PropertyEnum.price]()
+      .call()
+      .then(MAPPERS.price);
+    let titleProm = contract.methods[PropertyEnum.title]()
+      .call()
+      .then(MAPPERS.title);
+    let categoryProm = contract.methods[PropertyEnum.category]()
+      .call()
+      .then(MAPPERS.category);
+    let attachedFilesProm = contract.methods[PropertyEnum.attachedFiles]()
+      .call()
+      .then(MAPPERS.attachedFiles);
     return {
       status: await statusProm,
       shipsFrom: await shipsFromProm,
@@ -291,7 +296,7 @@ export class Blockchain {
         events.map((event) => {
           return {
             offer: event.returnValues.offer,
-            buyer: event.returnValues.buyer,
+            buyer: MAPPERS.buyer(event.returnValues.buyer),
           };
         })
       ),
@@ -314,7 +319,7 @@ export class Blockchain {
       return events.map((event) => {
         return {
           offer: event.returnValues.offer,
-          [objKey]: event.returnValues[ethKey],
+          [objKey]: MAPPERS[objKey](event.returnValues[ethKey]),
         };
       });
     };
@@ -356,8 +361,12 @@ export class Blockchain {
         OfferAbi as AbiItem[],
         event.returnValues.offer
       );
-      let currentAF = contract.methods[PropertyEnum.attachedFiles]().call();
-      let status = contract.methods[PropertyEnum.currentStatus]().call();
+      let currentAF = (contract.methods[
+        PropertyEnum.attachedFiles
+      ]().call() as Promise<unknown>).then(MAPPERS.attachedFiles);
+      let status = (contract.methods[
+        PropertyEnum.currentStatus
+      ]().call() as Promise<unknown>).then(MAPPERS.status);
       if ((await currentAF) == cid) {
         statusSet.add(await status);
       }
@@ -375,12 +384,12 @@ export class Blockchain {
 function makeCreatedEvent(data: any): CreatedEvent {
   return {
     offer: data.offer,
-    seller: data.seller,
-    title: data.title,
-    price: data.price,
-    category: data.category,
-    shipsFrom: data.shipsFrom,
-    attachedFiles: data.attachedFiles,
+    seller: MAPPERS.seller(data.seller),
+    title: MAPPERS.title(data.title),
+    price: MAPPERS.price(data.price),
+    category: MAPPERS.category(data.category),
+    shipsFrom: MAPPERS.shipsFrom(data.shipsFrom),
+    attachedFiles: MAPPERS.attachedFiles(data.attachedFiles),
   };
 }
 
